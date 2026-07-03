@@ -1,0 +1,827 @@
+import 'dart:convert';
+
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../../core/services/notification_service.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/utils/formatters.dart';
+import '../../data/models/content_item.dart';
+import '../../providers/providers.dart';
+import '../../shared/widgets/app_buttons.dart';
+import '../../shared/widgets/app_dialog.dart';
+import 'notifications_screen.dart';
+
+/// Tab 4 — Perfil: estadísticas, notificaciones programadas y configuración.
+class ProfileScreen extends ConsumerWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(profileStatsProvider);
+    final name = ref.watch(profileNameProvider);
+    final scheduled = ref.watch(scheduledNotificationsProvider);
+
+    return SafeArea(
+      bottom: false,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+        children: [
+          // Header de perfil.
+          Row(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primarySoft],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  name.isEmpty ? 'C' : name[0].toUpperCase(),
+                  style: GoogleFonts.poppins(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      '${stats.totalItems} títulos en tu catálogo',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Editar nombre',
+                onPressed: () => _editName(context, ref, name),
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Tarjetas resumen.
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.check_circle_outline,
+                  color: AppColors.success,
+                  value: '${stats.completedCount}',
+                  label: 'Vistos',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.schedule,
+                  color: AppColors.warning,
+                  value: '${stats.pendingCount}',
+                  label: 'Pendientes',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.timer_outlined,
+                  color: AppColors.secondary,
+                  value: formatLongDuration(stats.totalWatchedMinutes),
+                  label: 'Tiempo visto',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.local_fire_department_outlined,
+                  color: AppColors.primary,
+                  value:
+                      '${stats.streakDays} ${stats.streakDays == 1 ? 'día' : 'días'}',
+                  label: 'Racha',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Gráfico: distribución por tipo (donut).
+          if (stats.totalItems > 0) ...[
+            _SectionCard(
+              title: 'Tu catálogo por tipo',
+              child: _TypeDonutChart(byType: stats.byType),
+            ),
+            const SizedBox(height: 16),
+          ],
+          // Gráfico: top géneros (barras).
+          if (stats.topGenres.isNotEmpty) ...[
+            _SectionCard(
+              title: 'Géneros más frecuentes',
+              child: _GenresBarChart(topGenres: stats.topGenres),
+            ),
+            const SizedBox(height: 24),
+          ],
+          // Notificaciones programadas (resumen).
+          _SectionCard(
+            title: 'Notificaciones',
+            trailing: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const NotificationsScreen(),
+                ),
+              ),
+              child: Text(
+                'Ver todas',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.secondary,
+                ),
+              ),
+            ),
+            child: scheduled.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.notifications_off_outlined,
+                          color: AppColors.textMuted,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'No tienes recordatorios programados.',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (final item in scheduled.take(3))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              Text(
+                                item.type.emoji,
+                                style: const TextStyle(fontSize: 18),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                formatDateTime(item.notificationDate!),
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.tertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 24),
+          // Configuración.
+          Text(
+            'Configuración',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            icon: Icons.notification_add_outlined,
+            title: 'Probar notificaciones',
+            subtitle: 'Envía una notificación de prueba',
+            onTap: () async {
+              final granted =
+                  await NotificationService.instance.requestPermissions();
+              await NotificationService.instance.showTestNotification();
+              if (context.mounted && !granted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Activa los permisos de notificación del sistema para recibir recordatorios.',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.upload_outlined,
+            title: 'Exportar catálogo',
+            subtitle: 'Comparte tu colección en formato JSON',
+            onTap: () => _export(ref),
+          ),
+          _SettingsTile(
+            icon: Icons.download_outlined,
+            title: 'Importar catálogo',
+            subtitle: 'Pega un JSON exportado desde el portapapeles',
+            onTap: () => _import(context, ref),
+          ),
+          _SettingsTile(
+            icon: Icons.dark_mode_outlined,
+            title: 'Tema',
+            subtitle: 'Oscuro cinematográfico (único, como debe ser 🎬)',
+            onTap: null,
+          ),
+          _SettingsTile(
+            icon: Icons.delete_sweep_outlined,
+            title: 'Vaciar catálogo',
+            subtitle: 'Elimina todo el contenido guardado',
+            color: AppColors.error,
+            onTap: () => _clearAll(context, ref),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'CineLog Pro v1.0 · Hecho con ❤️ y 🍿',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editName(
+    BuildContext context,
+    WidgetRef ref,
+    String current,
+  ) async {
+    final controller = TextEditingController(text: current);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Tu nombre',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLines: 1,
+                textCapitalization: TextCapitalization.words,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+                decoration: const InputDecoration(hintText: 'Ej. Iván'),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: SecondaryButton(
+                      label: 'Cancelar',
+                      onTap: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: PrimaryButton(
+                      label: 'Guardar',
+                      onTap: () =>
+                          Navigator.of(context).pop(controller.text.trim()),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      await ref.read(profileNameProvider.notifier).setName(result);
+    }
+  }
+
+  void _export(WidgetRef ref) {
+    final items = ref.read(contentRepositoryProvider).getAll();
+    final json = const JsonEncoder.withIndent('  ')
+        .convert(items.map((e) => e.toJson()).toList());
+    SharePlus.instance.share(
+      ShareParams(text: json, subject: 'Catálogo CineLog Pro'),
+    );
+  }
+
+  Future<void> _import(BuildContext context, WidgetRef ref) async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim();
+    if (text == null || text.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Copia primero el JSON exportado y vuelve a intentarlo.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    List<ContentItem> items;
+    try {
+      final decoded = jsonDecode(text) as List;
+      items = decoded
+          .map((e) => ContentItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El portapapeles no contiene un catálogo válido.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: 'Importar ${items.length} títulos',
+      message:
+          'Se agregarán a tu catálogo actual (los que tengan el mismo id se sobrescriben). ¿Continuar?',
+      confirmLabel: 'Importar',
+      icon: Icons.download_outlined,
+      accent: AppColors.secondary,
+    );
+    if (!confirmed) return;
+
+    await ref.read(contentRepositoryProvider).saveAll(items);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${items.length} títulos importados')),
+      );
+    }
+  }
+
+  Future<void> _clearAll(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: '¿Vaciar todo el catálogo?',
+      message:
+          'Se eliminará todo tu contenido y recordatorios. Exporta antes si quieres conservar una copia.',
+      confirmLabel: 'Vaciar todo',
+      icon: Icons.delete_sweep_outlined,
+      accent: AppColors.error,
+    );
+    if (!confirmed) return;
+
+    final repo = ref.read(contentRepositoryProvider);
+    for (final item in repo.getAll()) {
+      await NotificationService.instance.cancelForContent(item.id);
+    }
+    await repo.clear();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Catálogo vaciado')),
+      );
+    }
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String value;
+  final String label;
+
+  const _StatCard({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final Widget child;
+  final Widget? trailing;
+
+  const _SectionCard({required this.title, required this.child, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// Donut de distribución por tipo de contenido.
+class _TypeDonutChart extends StatelessWidget {
+  final Map<ContentType, int> byType;
+
+  const _TypeDonutChart({required this.byType});
+
+  static const Map<ContentType, Color> _colors = {
+    ContentType.movie: AppColors.primary,
+    ContentType.series: AppColors.secondary,
+    ContentType.documentary: AppColors.success,
+    ContentType.anime: AppColors.tertiary,
+    ContentType.shortFilm: AppColors.info,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final total = byType.values.fold<int>(0, (a, b) => a + b);
+    final entries = byType.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 130,
+          height: 130,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 3,
+              centerSpaceRadius: 34,
+              startDegreeOffset: -90,
+              sections: [
+                for (final entry in entries)
+                  PieChartSectionData(
+                    value: entry.value.toDouble(),
+                    color: _colors[entry.key],
+                    radius: 26,
+                    showTitle: false,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 20),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final entry in entries)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: _colors[entry.key],
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          entry.key.pluralLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        total == 0
+                            ? '0%'
+                            : '${(entry.value * 100 / total).round()}%',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Barras horizontales-verticales con los géneros más frecuentes.
+class _GenresBarChart extends StatelessWidget {
+  final List<MapEntry<String, int>> topGenres;
+
+  const _GenresBarChart({required this.topGenres});
+
+  @override
+  Widget build(BuildContext context) {
+    final maxValue = topGenres.isEmpty
+        ? 1.0
+        : topGenres.first.value.toDouble();
+
+    return SizedBox(
+      height: 180,
+      child: BarChart(
+        BarChartData(
+          maxY: maxValue * 1.2,
+          alignment: BarChartAlignment.spaceAround,
+          barTouchData: BarTouchData(enabled: false),
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 34,
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+                  if (index < 0 || index >= topGenres.length) {
+                    return const SizedBox.shrink();
+                  }
+                  final label = topGenres[index].key;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      label.length > 8 ? '${label.substring(0, 7)}…' : label,
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          barGroups: [
+            for (var i = 0; i < topGenres.length; i++)
+              BarChartGroupData(
+                x: i,
+                barRods: [
+                  BarChartRodData(
+                    toY: topGenres[i].value.toDouble(),
+                    width: 22,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(6),
+                    ),
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primarySoft, AppColors.primary],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final Color? color;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final effective = color ?? AppColors.textPrimary;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 22,
+                  color: color ?? AppColors.textSecondary,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: effective,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (onTap != null)
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textMuted,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

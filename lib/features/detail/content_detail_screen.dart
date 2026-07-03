@@ -1,0 +1,924 @@
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../../core/theme/app_colors.dart';
+import '../../core/utils/formatters.dart';
+import '../../data/models/content_item.dart';
+import '../../providers/providers.dart';
+import '../../shared/widgets/app_dialog.dart';
+import '../../shared/widgets/content_card.dart';
+import '../../shared/widgets/genre_chip.dart';
+import '../../shared/widgets/poster_image.dart';
+import '../../shared/widgets/rating_stars.dart';
+import '../../shared/widgets/status_badge.dart';
+import '../content_form/content_form_screen.dart';
+
+/// Pantalla de detalle (spec 7.2): SliverAppBar con póster, acciones rápidas,
+/// info grid, notas, recomendación y contenido relacionado.
+class ContentDetailScreen extends ConsumerWidget {
+  final String contentId;
+
+  const ContentDetailScreen({super.key, required this.contentId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final item = ref.watch(contentByIdProvider(contentId));
+
+    if (item == null) {
+      // El contenido fue eliminado mientras la pantalla estaba abierta.
+      return const Scaffold(body: SizedBox.shrink());
+    }
+
+    final allItems =
+        ref.watch(contentListProvider).value ?? const <ContentItem>[];
+    final related = allItems
+        .where((other) =>
+            other.id != item.id &&
+            other.genres.any((g) => item.genres.contains(g)))
+        .take(8)
+        .toList();
+
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          _buildAppBar(context, ref, item),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildQuickActions(context, ref, item),
+                  const SizedBox(height: 24),
+                  _buildInfoGrid(context, item),
+                  const SizedBox(height: 24),
+                  if (item.type.hasEpisodes && item.episodes != null) ...[
+                    _EpisodeProgress(item: item),
+                    const SizedBox(height: 24),
+                  ],
+                  if (item.userRating != null) ...[
+                    _sectionTitle('Tu calificación'),
+                    RatingStars(rating: item.userRating, size: 26),
+                    const SizedBox(height: 24),
+                  ],
+                  if (item.genres.isNotEmpty) ...[
+                    _sectionTitle('Géneros'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final genre in item.genres)
+                          GenreChip(label: genre),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (item.personalNote != null &&
+                      item.personalNote!.isNotEmpty) ...[
+                    _sectionTitle('Nota personal'),
+                    _ExpandableNote(text: item.personalNote!),
+                    const SizedBox(height: 24),
+                  ],
+                  if (item.isRecommendation) ...[
+                    _RecommendationCard(item: item),
+                    const SizedBox(height: 24),
+                  ],
+                  if ((item.rewatchCount ?? 0) > 0 ||
+                      (item.watchDate != null &&
+                          item.status == WatchStatus.completed)) ...[
+                    _sectionTitle('Historial de visionado'),
+                    _WatchHistory(item: item),
+                    const SizedBox(height: 24),
+                  ],
+                  if (related.isNotEmpty) ...[
+                    _sectionTitle('Contenido similar'),
+                    SizedBox(
+                      height: 210,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: related.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final other = related[index];
+                          return SizedBox(
+                            width: 140,
+                            child: ContentCard(
+                              item: other,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ContentDetailScreen(
+                                    contentId: other.id,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  SizedBox(
+                    height: MediaQuery.paddingOf(context).bottom,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context, WidgetRef ref, ContentItem item) {
+    return SliverAppBar(
+      pinned: true,
+      expandedHeight: 400,
+      collapsedHeight: 80,
+      backgroundColor: AppColors.background,
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: _CircleIconButton(
+          icon: Icons.arrow_back,
+          onTap: () => Navigator.of(context).pop(),
+        ),
+      ),
+      actions: [
+        _CircleIconButton(
+          icon: item.isFavorite
+              ? Icons.favorite_rounded
+              : Icons.favorite_outline_rounded,
+          color: item.isFavorite ? AppColors.primary : Colors.white,
+          onTap: () => ref.read(contentActionsProvider).toggleFavorite(item),
+        ),
+        const SizedBox(width: 8),
+        _CircleIconButton(
+          icon: Icons.delete_outline,
+          onTap: () => _confirmDelete(context, ref, item),
+        ),
+        const SizedBox(width: 12),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding:
+            const EdgeInsets.only(left: 64, right: 110, bottom: 22),
+        title: LayoutBuilder(
+          builder: (context, constraints) {
+            final settings = context
+                .dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+            final collapsed = settings != null &&
+                settings.currentExtent <= settings.minExtent + 20;
+            return AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: collapsed ? 1 : 0,
+              child: Text(
+                item.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            );
+          },
+        ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Fondo: póster desenfocado a pantalla completa.
+            PosterImage(item: item),
+            ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  color: AppColors.background.withValues(alpha: 0.55),
+                ),
+              ),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    AppColors.background.withValues(alpha: 0.65),
+                    AppColors.background,
+                  ],
+                  stops: const [0.4, 0.8, 1.0],
+                ),
+              ),
+            ),
+            // Póster nítido centrado + título.
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 48, bottom: 16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      height: 190,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: AspectRatio(
+                          aspectRatio: 2 / 3,
+                          child: PosterImage(item: item),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        item.title,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        StatusBadge(status: item.status),
+                        Text(
+                          '${item.type.emoji} ${item.type.label}',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(
+    BuildContext context,
+    WidgetRef ref,
+    ContentItem item,
+  ) {
+    final actions = ref.read(contentActionsProvider);
+    final isSeen = item.status == WatchStatus.completed;
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.center,
+      children: [
+        _QuickAction(
+          icon: isSeen ? Icons.replay : Icons.check_circle_outline,
+          label: isSeen ? 'Volver a ver' : 'Marcar Visto',
+          color: isSeen ? AppColors.tertiary : AppColors.success,
+          onTap: () async {
+            if (isSeen) {
+              await actions
+                  .save(item.copyWith(status: WatchStatus.rewatchPending));
+            } else {
+              await actions.markCompleted(item);
+            }
+          },
+        ),
+        _QuickAction(
+          icon: Icons.alarm_add_outlined,
+          label: 'Programar',
+          color: AppColors.secondary,
+          onTap: () => _scheduleReminder(context, ref, item),
+        ),
+        _QuickAction(
+          icon: Icons.share_outlined,
+          label: 'Compartir',
+          color: AppColors.info,
+          onTap: () => _share(item),
+        ),
+        _QuickAction(
+          icon: Icons.edit_outlined,
+          label: 'Editar',
+          color: AppColors.textSecondary,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ContentFormScreen(original: item),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoGrid(BuildContext context, ContentItem item) {
+    final entries = <(String, String)>[
+      if (item.releaseDate != null)
+        ('Año', item.releaseDate!.year.toString()),
+      (
+        item.type.hasEpisodes ? 'Por episodio' : 'Duración',
+        formatDuration(item.durationMinutes),
+      ),
+      if (item.episodes != null) ('Episodios', '${item.episodes}'),
+      ('Agregada', formatRelative(item.addedAt)),
+      if (item.watchDate != null)
+        (
+          item.status == WatchStatus.completed ? 'Vista el' : 'Programada',
+          formatDate(item.watchDate!),
+        ),
+      if (item.notifyMe && item.notificationDate != null)
+        ('Recordatorio', formatDateTime(item.notificationDate!)),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Wrap(
+        spacing: 24,
+        runSpacing: 16,
+        children: [
+          for (final (label, value) in entries)
+            SizedBox(
+              width: 130,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      );
+
+  Future<void> _scheduleReminder(
+    BuildContext context,
+    WidgetRef ref,
+    ContentItem item,
+  ) async {
+    final now = DateTime.now();
+    final initial = item.notificationDate != null &&
+            item.notificationDate!.isAfter(now)
+        ? item.notificationDate!
+        : now.add(const Duration(hours: 2));
+
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5),
+      locale: const Locale('es'),
+    );
+    if (date == null || !context.mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null || !context.mounted) return;
+
+    final scheduled =
+        DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    if (scheduled.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Elige una fecha y hora futuras.')),
+      );
+      return;
+    }
+
+    await ref.read(contentActionsProvider).save(
+          item.copyWith(
+            notifyMe: true,
+            notificationDate: scheduled,
+            watchDate: scheduled,
+          ),
+        );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Recordatorio programado: ${formatDateTime(scheduled)}'),
+        ),
+      );
+    }
+  }
+
+  void _share(ContentItem item) {
+    final buffer = StringBuffer('🎬 Te recomiendo: ${item.title}');
+    if (item.genres.isNotEmpty) {
+      buffer.write('\nGéneros: ${item.genres.join(', ')}');
+    }
+    if (item.userRating != null) {
+      buffer.write('\nMi nota: ${item.userRating!.toStringAsFixed(1)}/10 ⭐');
+    }
+    if (item.personalNote != null && item.personalNote!.isNotEmpty) {
+      buffer.write('\n"${item.personalNote}"');
+    }
+    buffer.write('\n\nCompartido desde CineLog Pro 🍿');
+    SharePlus.instance.share(ShareParams(text: buffer.toString()));
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    ContentItem item,
+  ) async {
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: '¿Eliminar "${item.title}"?',
+      message:
+          'Se quitará del catálogo junto con sus recordatorios. Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      icon: Icons.delete_outline,
+      accent: AppColors.error,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    await ref.read(contentActionsProvider).delete(item);
+    if (context.mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${item.title}" eliminado')),
+      );
+    }
+  }
+}
+
+class _CircleIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+
+  const _CircleIconButton({
+    required this.icon,
+    required this.onTap,
+    this.color = Colors.white,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.35),
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: Icon(icon, size: 22, color: color),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 76,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: color.withValues(alpha: 0.4)),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Progreso de episodios con stepper (+/-) para series y anime.
+class _EpisodeProgress extends ConsumerWidget {
+  final ContentItem item;
+
+  const _EpisodeProgress({required this.item});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final total = item.episodes ?? 0;
+    final current = (item.currentEpisode ?? 0).clamp(0, total);
+    final actions = ref.read(contentActionsProvider);
+
+    Future<void> setEpisode(int value) async {
+      final clamped = value.clamp(0, total);
+      var updated = item.copyWith(currentEpisode: clamped);
+      if (clamped >= total && total > 0) {
+        updated = updated.copyWith(
+          status: WatchStatus.completed,
+          watchDate: DateTime.now(),
+        );
+      } else if (clamped > 0 && item.status == WatchStatus.notStarted) {
+        updated = updated.copyWith(status: WatchStatus.watching);
+      }
+      await actions.save(updated);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Progreso de episodios',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                '$current / $total',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.secondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: total == 0 ? 0 : current / total,
+              minHeight: 8,
+              backgroundColor: AppColors.surfaceElevated,
+              color: AppColors.secondary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        current > 0 ? () => setEpisode(current - 1) : null,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.remove, size: 20),
+                    label: Text(
+                      'Anterior',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed:
+                        current < total ? () => setEpisode(current + 1) : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add, size: 20),
+                    label: Text(
+                      'Visto +1',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Nota personal expandible (3 líneas colapsada).
+class _ExpandableNote extends StatefulWidget {
+  final String text;
+
+  const _ExpandableNote({required this.text});
+
+  @override
+  State<_ExpandableNote> createState() => _ExpandableNoteState();
+}
+
+class _ExpandableNoteState extends State<_ExpandableNote> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: Text(
+                widget.text,
+                maxLines: _expanded ? null : 3,
+                overflow: _expanded ? null : TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  height: 1.6,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            if (widget.text.length > 120) ...[
+              const SizedBox(height: 8),
+              Text(
+                _expanded ? 'Ver menos' : 'Ver más',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.secondary,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Card especial cuando el contenido fue recomendado por un amigo.
+class _RecommendationCard extends StatelessWidget {
+  final ContentItem item;
+
+  const _RecommendationCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = item.recommendedBy ?? 'Un amigo';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.tertiary.withValues(alpha: 0.5)),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.tertiary.withValues(alpha: 0.12),
+            AppColors.surface,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.tertiary,
+            child: Text(
+              name[0].toUpperCase(),
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recomendado por $name',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.tertiary,
+                  ),
+                ),
+                if (item.recommendedNote != null &&
+                    item.recommendedNote!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '"${item.recommendedNote}"',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      height: 1.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WatchHistory extends StatelessWidget {
+  final ContentItem item;
+
+  const _WatchHistory({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final rewatches = item.rewatchCount ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.history, color: AppColors.success, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  rewatches > 0
+                      ? 'Vista ${rewatches + 1} veces'
+                      : 'Vista 1 vez',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (item.watchDate != null)
+                  Text(
+                    'Última vez: ${formatDate(item.watchDate!)} (${formatRelative(item.watchDate!)})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
