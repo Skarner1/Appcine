@@ -26,7 +26,14 @@ class AppColors {
   static const Color textSecondary = Color(0xFFB0B0B0); // Gris claro
   static const Color textMuted = Color(0xFF707070); // Gris medio
 
-  // Bordes y divisores
-  static const Color border = Color(0xFF2A2A2A);
-  static const Color divider = Color(0xFF333333);
+  // Bordes y divisores — hairlines sutiles con un matiz frío premium.
+  static const Color border = Color(0xFF2F2F37); // borde estándar
+  static const Color borderStrong = Color(0xFF3C3C46); // énfasis / foco / hover
+  static const Color divider = Color(0xFF26262E); // divisores internos
+
+  // Degradados cinematográficos.
+  static const List<Color> primaryGradient = [
+    Color(0xFFFF3B44), // rojo brillante
+    Color(0xFFC01019), // rojo profundo
+  ];
 }

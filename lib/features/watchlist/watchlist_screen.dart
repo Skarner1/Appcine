@@ -11,6 +11,7 @@ import '../../shared/widgets/shimmer_card.dart';
 import '../../shared/widgets/staggered_item.dart';
 import '../content_form/content_form_screen.dart';
 import '../detail/content_detail_screen.dart';
+import '../roulette/roulette_screen.dart';
 
 /// Tab 2 — Por Ver: segmented control con Falta Ver | Volver a Ver | Vistos.
 class WatchlistScreen extends ConsumerStatefulWidget {
@@ -35,15 +36,28 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: Text(
-              'Por Ver',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.poppins(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Por Ver',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                _RouletteButton(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const RouletteScreen(),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -123,6 +137,41 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Botón "¿Qué veo hoy?" — abre la ruleta para elegir algo pendiente al azar.
+class _RouletteButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _RouletteButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '¿Qué veo hoy?',
+      child: Material(
+        color: AppColors.primary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.primary),
+            ),
+            child: const Icon(
+              Icons.casino_rounded,
+              size: 24,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
       ),
     );
   }

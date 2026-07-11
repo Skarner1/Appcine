@@ -41,32 +41,68 @@ class AppTheme {
     final inter = GoogleFonts.inter(color: AppColors.textPrimary);
 
     return TextTheme(
-      // Títulos — Poppins
-      displayLarge: poppins.copyWith(fontSize: 32, fontWeight: FontWeight.w700),
-      displayMedium:
-          poppins.copyWith(fontSize: 28, fontWeight: FontWeight.w700),
-      headlineLarge:
-          poppins.copyWith(fontSize: 26, fontWeight: FontWeight.w700),
-      headlineMedium:
-          poppins.copyWith(fontSize: 24, fontWeight: FontWeight.w600),
-      headlineSmall:
-          poppins.copyWith(fontSize: 20, fontWeight: FontWeight.w600),
-      titleLarge: poppins.copyWith(fontSize: 18, fontWeight: FontWeight.w600),
-      titleMedium: poppins.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
-      titleSmall: poppins.copyWith(fontSize: 14, fontWeight: FontWeight.w500),
-      // Cuerpo — Inter
-      bodyLarge: inter.copyWith(fontSize: 15, fontWeight: FontWeight.w400),
-      bodyMedium: inter.copyWith(fontSize: 14, fontWeight: FontWeight.w400),
+      // Títulos — Poppins. Interletrado negativo y ajustado para un look
+      // editorial más compacto y premium en los tamaños grandes.
+      displayLarge: poppins.copyWith(
+          fontSize: 32,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+          height: 1.12),
+      displayMedium: poppins.copyWith(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+          height: 1.14),
+      headlineLarge: poppins.copyWith(
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.4,
+          height: 1.16),
+      headlineMedium: poppins.copyWith(
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.3,
+          height: 1.18),
+      headlineSmall: poppins.copyWith(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
+          height: 1.2),
+      titleLarge: poppins.copyWith(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.1,
+          height: 1.25),
+      titleMedium: poppins.copyWith(
+          fontSize: 16, fontWeight: FontWeight.w600, height: 1.3),
+      titleSmall: poppins.copyWith(
+          fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
+      // Cuerpo — Inter. Interlineado generoso para lectura cómoda.
+      bodyLarge: inter.copyWith(
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+          height: 1.5,
+          letterSpacing: 0.1),
+      bodyMedium: inter.copyWith(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          height: 1.45,
+          letterSpacing: 0.1),
       bodySmall: inter.copyWith(
         fontSize: 13,
         fontWeight: FontWeight.w400,
+        height: 1.4,
+        letterSpacing: 0.1,
         color: AppColors.textSecondary,
       ),
-      labelLarge: inter.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
-      labelMedium: inter.copyWith(fontSize: 12, fontWeight: FontWeight.w500),
+      labelLarge: inter.copyWith(
+          fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.3),
+      labelMedium: inter.copyWith(
+          fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.2),
       labelSmall: inter.copyWith(
         fontSize: 11,
         fontWeight: FontWeight.w600,
+        letterSpacing: 0.4,
         color: AppColors.textSecondary,
       ),
     );
@@ -126,24 +162,24 @@ class AppTheme {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.8),
         ),
       ),
       cardTheme: CardThemeData(

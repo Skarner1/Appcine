@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Búsqueda de contenido en internet (iTunes, TVMaze, Jikan) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Notificaciones locales (flutter_local_notifications) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>

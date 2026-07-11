@@ -11,19 +11,26 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
+import '../../data/models/online_result.dart';
 import '../../providers/providers.dart';
 import '../../shared/widgets/app_buttons.dart';
 import '../../shared/widgets/custom_bottom_sheet.dart';
 import '../../shared/widgets/genre_chip.dart';
 import '../../shared/widgets/poster_image.dart';
 import '../../shared/widgets/rating_stars.dart';
+import '../online_search/online_search_screen.dart';
 
 /// Pantalla Agregar/Editar contenido (spec 7.1).
 class ContentFormScreen extends ConsumerStatefulWidget {
   /// Si [original] es null se crea contenido nuevo.
   final ContentItem? original;
 
-  const ContentFormScreen({super.key, this.original});
+  /// Datos iniciales para contenido nuevo (p. ej. desde la búsqueda online).
+  /// Se ignora si [original] no es null. No cuenta como edición: al guardar
+  /// se genera un id nuevo.
+  final ContentItem? draft;
+
+  const ContentFormScreen({super.key, this.original, this.draft});
 
   @override
   ConsumerState<ContentFormScreen> createState() => _ContentFormScreenState();
@@ -49,13 +56,14 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
   late bool _isRecommendation;
   late bool _notifyMe;
   DateTime? _notificationDate;
+  DateTime? _releaseDate;
 
   bool get _isEditing => widget.original != null;
 
   @override
   void initState() {
     super.initState();
-    final item = widget.original;
+    final item = widget.original ?? widget.draft;
     _titleController = TextEditingController(text: item?.title ?? '');
     _noteController = TextEditingController(text: item?.personalNote ?? '');
     _friendNameController =
@@ -77,6 +85,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
     _isRecommendation = item?.source == ContentSource.friendRecommended;
     _notifyMe = item?.notifyMe ?? false;
     _notificationDate = item?.notificationDate;
+    _releaseDate = item?.releaseDate;
 
     // El placeholder del póster usa la inicial del título.
     _titleController.addListener(() => setState(() {}));
@@ -738,6 +747,16 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           _posterOption(
+            icon: Icons.travel_explore_rounded,
+            label: 'Buscar en internet',
+            color: AppColors.primary,
+            onTap: () async {
+              Navigator.of(context).pop();
+              await _searchOnline();
+            },
+          ),
+          const SizedBox(height: 12),
+          _posterOption(
             icon: Icons.photo_library_outlined,
             label: 'Elegir de la galería',
             onTap: () async {
@@ -804,6 +823,57 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _searchOnline() async {
+    final result = await Navigator.of(context).push<OnlineResult>(
+      MaterialPageRoute(
+        builder: (_) => OnlineSearchScreen(pickerMode: true, lockedType: _type),
+      ),
+    );
+    if (result != null && mounted) _applyOnlineResult(result);
+  }
+
+  /// Trae datos del resultado elegido a la ficha en edición: el póster siempre;
+  /// el resto de campos solo si están vacíos (no piso lo que ya escribiste).
+  void _applyOnlineResult(OnlineResult r) {
+    var importedInfo = false;
+    setState(() {
+      if (r.posterUrl != null && r.posterUrl!.isNotEmpty) {
+        _posterUrl = r.posterUrl;
+      }
+      if (_titleController.text.trim().isEmpty && r.title.isNotEmpty) {
+        _titleController.text = r.title;
+        importedInfo = true;
+      }
+      if (_genres.isEmpty && r.genres.isNotEmpty) {
+        _genres = List.of(r.genres);
+        importedInfo = true;
+      }
+      if (_noteController.text.trim().isEmpty &&
+          (r.overview?.isNotEmpty ?? false)) {
+        _noteController.text = r.overview!;
+        importedInfo = true;
+      }
+      if (_type.hasEpisodes &&
+          r.episodes != null &&
+          _episodesController.text.trim().isEmpty) {
+        _episodesController.text = r.episodes.toString();
+        importedInfo = true;
+      }
+      if (_releaseDate == null && r.releaseDate != null) {
+        _releaseDate = r.releaseDate;
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          importedInfo
+              ? 'Póster e información importados de internet'
+              : 'Póster actualizado desde internet',
         ),
       ),
     );
@@ -946,7 +1016,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
           : _noteController.text.trim(),
       posterUrl: _posterUrl,
       watchDate: _watchDate,
-      releaseDate: original?.releaseDate,
+      releaseDate: _releaseDate,
       addedAt: original?.addedAt ?? DateTime.now(),
       source: source,
       recommendedBy: _isRecommendation

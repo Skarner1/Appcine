@@ -1,19 +1,17 @@
-import 'dart:convert';
-
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/services/notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
+import '../../data/services/backup_service.dart';
 import '../../providers/providers.dart';
 import '../../shared/widgets/app_buttons.dart';
 import '../../shared/widgets/app_dialog.dart';
+import '../stats/watch_stats_screen.dart';
 import 'notifications_screen.dart';
 
 /// Tab 4 — Perfil: estadísticas, notificaciones programadas y configuración.
@@ -131,6 +129,11 @@ class ProfileScreen extends ConsumerWidget {
                   color: AppColors.secondary,
                   value: formatLongDuration(stats.totalWatchedMinutes),
                   label: 'Tiempo visto',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WatchStatsScreen(),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -275,15 +278,15 @@ class ProfileScreen extends ConsumerWidget {
             },
           ),
           _SettingsTile(
-            icon: Icons.upload_outlined,
-            title: 'Exportar catálogo',
-            subtitle: 'Comparte tu colección en formato JSON',
-            onTap: () => _export(ref),
+            icon: Icons.backup_outlined,
+            title: 'Crear copia de seguridad',
+            subtitle: 'Guarda tu catálogo en un archivo .json',
+            onTap: () => _export(context, ref),
           ),
           _SettingsTile(
-            icon: Icons.download_outlined,
-            title: 'Importar catálogo',
-            subtitle: 'Pega un JSON exportado desde el portapapeles',
+            icon: Icons.restore_outlined,
+            title: 'Restaurar copia',
+            subtitle: 'Importa un archivo .json de backup',
             onTap: () => _import(context, ref),
           ),
           _SettingsTile(
@@ -380,43 +383,52 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
-  void _export(WidgetRef ref) {
+  Future<void> _export(BuildContext context, WidgetRef ref) async {
     final items = ref.read(contentRepositoryProvider).getAll();
-    final json = const JsonEncoder.withIndent('  ')
-        .convert(items.map((e) => e.toJson()).toList());
-    SharePlus.instance.share(
-      ShareParams(text: json, subject: 'Catálogo CineLog Pro'),
-    );
-  }
-
-  Future<void> _import(BuildContext context, WidgetRef ref) async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = data?.text?.trim();
-    if (text == null || text.isEmpty) {
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay nada que respaldar todavía.')),
+      );
+      return;
+    }
+    try {
+      await ref.read(backupServiceProvider).exportAndShare(items);
+    } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Copia primero el JSON exportado y vuelve a intentarlo.',
-            ),
+            content: Text('No se pudo crear la copia de seguridad.'),
           ),
+        );
+      }
+    }
+  }
+
+  Future<void> _import(BuildContext context, WidgetRef ref) async {
+    final BackupImport? backup;
+    try {
+      backup = await ref.read(backupServiceProvider).pickAndDecode();
+    } on FormatException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+      return;
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo leer el archivo.')),
         );
       }
       return;
     }
 
-    List<ContentItem> items;
-    try {
-      final decoded = jsonDecode(text) as List;
-      items = decoded
-          .map((e) => ContentItem.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList();
-    } catch (_) {
+    if (backup == null) return; // El usuario canceló la selección.
+    if (backup.items.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('El portapapeles no contiene un catálogo válido.'),
-          ),
+          const SnackBar(content: Text('El backup no contiene títulos.')),
         );
       }
       return;
@@ -425,19 +437,19 @@ class ProfileScreen extends ConsumerWidget {
     if (!context.mounted) return;
     final confirmed = await showAppConfirmDialog(
       context: context,
-      title: 'Importar ${items.length} títulos',
+      title: 'Restaurar ${backup.items.length} títulos',
       message:
-          'Se agregarán a tu catálogo actual (los que tengan el mismo id se sobrescriben). ¿Continuar?',
-      confirmLabel: 'Importar',
-      icon: Icons.download_outlined,
+          'Se añadirán a tu catálogo actual (los que tengan el mismo id se sobrescriben). ¿Continuar?',
+      confirmLabel: 'Restaurar',
+      icon: Icons.restore_outlined,
       accent: AppColors.secondary,
     );
     if (!confirmed) return;
 
-    await ref.read(contentRepositoryProvider).saveAll(items);
+    await ref.read(contentRepositoryProvider).saveAll(backup.items);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${items.length} títulos importados')),
+        SnackBar(content: Text('${backup.items.length} títulos restaurados')),
       );
     }
   }
@@ -472,17 +484,19 @@ class _StatCard extends StatelessWidget {
   final Color color;
   final String value;
   final String label;
+  final VoidCallback? onTap;
 
   const _StatCard({
     required this.icon,
     required this.color,
     required this.value,
     required this.label,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final content = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -492,14 +506,25 @@ class _StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 22),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const Spacer(),
+              if (onTap != null)
+                const Icon(
+                  Icons.arrow_outward_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
+            ],
           ),
           const SizedBox(height: 12),
           Text(
@@ -522,6 +547,17 @@ class _StatCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) return content;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: content,
       ),
     );
   }

@@ -15,6 +15,7 @@ import '../../shared/widgets/genre_chip.dart';
 import '../../shared/widgets/poster_image.dart';
 import '../../shared/widgets/rating_stars.dart';
 import '../../shared/widgets/status_badge.dart';
+import '../collections/add_to_collection.dart';
 import '../content_form/content_form_screen.dart';
 
 /// Pantalla de detalle (spec 7.2): SliverAppBar con póster, acciones rápidas,
@@ -147,6 +148,11 @@ class ContentDetailScreen extends ConsumerWidget {
         ),
       ),
       actions: [
+        _CircleIconButton(
+          icon: Icons.collections_bookmark_outlined,
+          onTap: () => showItemCollectionsSheet(context: context, itemId: item.id),
+        ),
+        const SizedBox(width: 8),
         _CircleIconButton(
           icon: item.isFavorite
               ? Icons.favorite_rounded

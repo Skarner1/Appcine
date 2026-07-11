@@ -12,8 +12,10 @@ import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/genre_chip.dart';
 import '../../shared/widgets/shimmer_card.dart';
 import '../../shared/widgets/staggered_item.dart';
+import '../collections/collections_screen.dart';
 import '../content_form/content_form_screen.dart';
 import '../detail/content_detail_screen.dart';
+import '../online_search/online_search_screen.dart';
 
 /// Tab 1 — Catálogo: búsqueda, filtros rápidos y grid responsive.
 class CatalogScreen extends ConsumerStatefulWidget {
@@ -78,6 +80,27 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      _HeaderIconButton(
+                        icon: Icons.travel_explore_rounded,
+                        tooltip: 'Buscar en internet',
+                        highlighted: true,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const OnlineSearchScreen(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _HeaderIconButton(
+                        icon: Icons.collections_bookmark_outlined,
+                        tooltip: 'Colecciones',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const CollectionsScreen(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       _FavoritesToggle(
                         active: filter.onlyFavorites,
                         onTap: () => ref
@@ -288,6 +311,54 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Botón de icono para la cabecera (48dp). Con [highlighted] se tiñe de rojo
+/// para destacar la acción de búsqueda online.
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool highlighted;
+  final VoidCallback onTap;
+
+  const _HeaderIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.highlighted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: highlighted
+            ? AppColors.primary.withValues(alpha: 0.14)
+            : AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: highlighted ? AppColors.primary : AppColors.border,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: highlighted ? AppColors.primary : AppColors.textSecondary,
+            ),
+          ),
+        ),
       ),
     );
   }

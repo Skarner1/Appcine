@@ -50,7 +50,13 @@ dependencies:
   uuid: ^4.5.3
   image_picker: ^1.2.3
   path_provider: ^2.1.6
-  share_plus: ^13.2.0
+  # share_plus se fija en 12.x porque 13+ exige win32 ^6 y file_picker 11 exige
+  # win32 ^5.9.0; con 12.x ambos plugins comparten win32 5.x. La API
+  # SharePlus.instance/ShareParams existe desde share_plus 11, así que el código
+  # no cambia.
+  share_plus: ^12.0.2
+  http: ^1.2.2
+  file_picker: ^11.0.0
 
 dev_dependencies:
   flutter_test:
