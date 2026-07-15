@@ -22,9 +22,9 @@ Future<T?> showAppBottomSheet<T>({
       maxChildSize: 0.9,
       expand: false,
       builder: (context, controller) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SafeArea(
           top: false,

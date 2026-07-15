@@ -7,26 +7,48 @@ import 'core/services/notification_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'data/models/content_item.dart';
+import 'data/services/auto_backup_service.dart';
+import 'data/services/poster_store.dart';
 import 'features/catalog/catalog_screen.dart';
 import 'features/content_form/content_form_screen.dart';
 import 'features/detail/content_detail_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/recommendations/recommendations_screen.dart';
+import 'features/reminders/stalled_reminders.dart';
 import 'features/watchlist/watchlist_screen.dart';
 import 'providers/providers.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
-class CineLogApp extends StatelessWidget {
+/// Resuelve si el brillo efectivo es oscuro a partir del modo elegido y el
+/// brillo del sistema.
+bool isDarkMode(ThemeMode mode, Brightness platformBrightness) => switch (mode) {
+      ThemeMode.dark => true,
+      ThemeMode.light => false,
+      ThemeMode.system => platformBrightness == Brightness.dark,
+    };
+
+class CineLogApp extends ConsumerWidget {
   const CineLogApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
+    final platformBrightness = MediaQuery.maybeOf(context)?.platformBrightness ??
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final dark = isDarkMode(mode, platformBrightness);
+
+    // Fija la paleta activa antes de construir el árbol para que los getters de
+    // AppColors (usados en toda la app) devuelvan los colores correctos.
+    AppColors.setBrightness(dark ? Brightness.dark : Brightness.light);
+
     return MaterialApp(
       title: 'CineLog Pro',
       debugShowCheckedModeBanner: false,
       navigatorKey: appNavigatorKey,
-      theme: AppTheme.dark(),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: mode,
       locale: const Locale('es'),
       supportedLocales: const [Locale('es'), Locale('en')],
       localizationsDelegates: const [
@@ -83,7 +105,50 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (response?.payload != null && response!.payload!.isNotEmpty) {
         _handleNotificationTap(response.payload!, response.actionId);
       }
+      await _tidyPosters();
+      await syncStalledReminder(ref);
+      await _autoBackup();
     });
+  }
+
+  /// Copia de seguridad silenciosa si toca. En segundo plano y sin avisar: si
+  /// hiciera falta enterarse, no sería automática.
+  Future<void> _autoBackup() async {
+    try {
+      final items = ref.read(contentRepositoryProvider).getAll();
+      final now = DateTime.now();
+
+      final due = AutoBackupService.shouldRun(
+        enabled: ref.read(autoBackupEnabledProvider),
+        lastRun: ref.read(autoBackupLastRunProvider),
+        frequency: ref.read(autoBackupFrequencyProvider),
+        hasContent: items.isNotEmpty,
+        now: now,
+      );
+      if (!due) return;
+
+      final path = await ref.read(autoBackupServiceProvider).run(items, now: now);
+      // Solo se marca si de verdad se escribió: si falló, que reintente.
+      if (path != null) {
+        await ref.read(autoBackupLastRunProvider.notifier).markRun(now);
+      }
+    } catch (_) {}
+  }
+
+  /// Baja al disco los pósters que aún son URLs y tira los archivos huérfanos.
+  /// En segundo plano y sin avisar: es mantenimiento, no una acción del usuario.
+  Future<void> _tidyPosters() async {
+    try {
+      final repo = ref.read(contentRepositoryProvider);
+      final store = ref.read(posterStoreProvider);
+
+      final localized = await store.localizePending(repo.getAll());
+      if (localized.isNotEmpty) await repo.saveAll(localized);
+
+      await store.pruneOrphans(repo.getAll());
+    } catch (_) {
+      // Que un fallo de mantenimiento no moleste al arrancar.
+    }
   }
 
   Future<void> _handleNotificationTap(
@@ -123,15 +188,29 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Al cambiar el brillo efectivo (toggle del usuario o del sistema) se
+    // reconstruye todo el cuerpo, de modo que hasta los widgets `const` que
+    // leen AppColors adopten la nueva paleta.
+    final mode = ref.watch(themeModeProvider);
+    final dark = isDarkMode(mode, MediaQuery.platformBrightnessOf(context));
+
+    // AppShell siempre está bajo un MediaQuery, así que aquí la paleta refleja
+    // con certeza el brillo aplicado (incluso en modo "Sistema"). Se fija antes
+    // de construir el cuerpo para que los descendientes lean el color correcto.
+    AppColors.setBrightness(dark ? Brightness.dark : Brightness.light);
+
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: const [
-          CatalogScreen(),
-          WatchlistScreen(),
-          RecommendationsScreen(),
-          ProfileScreen(),
-        ],
+      body: KeyedSubtree(
+        key: ValueKey(dark),
+        child: IndexedStack(
+          index: _index,
+          children: const [
+            CatalogScreen(),
+            WatchlistScreen(),
+            RecommendationsScreen(),
+            ProfileScreen(),
+          ],
+        ),
       ),
       floatingActionButton: _index == 0
           ? AnimatedSwitcher(
@@ -140,7 +219,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             )
           : null,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           border: Border(top: BorderSide(color: AppColors.border)),
         ),

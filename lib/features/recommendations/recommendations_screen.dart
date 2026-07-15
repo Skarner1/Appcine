@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
 import '../../providers/providers.dart';
+import '../../shared/widgets/content_actions_sheet.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/genre_chip.dart';
 import '../../shared/widgets/poster_image.dart';
@@ -150,6 +151,7 @@ class _RecommendationCard extends ConsumerWidget {
 
     return ScaleTap(
       onTap: onTap,
+      onLongPress: () => showContentActionsSheet(context, ref, item),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -313,7 +315,7 @@ class _RecommendationCard extends ConsumerWidget {
                     ? OutlinedButton.icon(
                         onPressed: null,
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.border),
+                          side: BorderSide(color: AppColors.border),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

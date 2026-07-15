@@ -405,7 +405,7 @@ class _MonthlyChart extends StatelessWidget {
               getTooltipItem: (group, _, rod, _) {
                 final bucket = monthly[group.x];
                 return BarTooltipItem(
-                  '${formatLongDuration(bucket.minutes)}\n${bucket.count} ${bucket.count == 1 ? 'título' : 'títulos'}',
+                  '${formatLongDuration(bucket.minutes)}\n${bucket.count} ${bucket.count == 1 ? 'visionado' : 'visionados'}',
                   GoogleFonts.inter(
                     fontSize: 11,
                     color: AppColors.textPrimary,
@@ -524,7 +524,7 @@ class _LongestTitle extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
+          Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
         ],
       ),
     );

@@ -6,7 +6,10 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/content_item.dart';
 import '../../providers/providers.dart';
+import '../../shared/widgets/app_buttons.dart';
+import '../../shared/widgets/content_actions_sheet.dart';
 import '../../shared/widgets/content_card.dart';
+import '../../shared/widgets/content_type_carousel.dart';
 import '../../shared/widgets/custom_bottom_sheet.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/genre_chip.dart';
@@ -14,6 +17,8 @@ import '../../shared/widgets/shimmer_card.dart';
 import '../../shared/widgets/staggered_item.dart';
 import '../collections/collections_screen.dart';
 import '../content_form/content_form_screen.dart';
+import 'catalog_search.dart';
+import 'first_run_hint.dart';
 import '../detail/content_detail_screen.dart';
 import '../online_search/online_search_screen.dart';
 
@@ -28,10 +33,28 @@ class CatalogScreen extends ConsumerStatefulWidget {
 class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   final _searchController = TextEditingController();
 
+  /// Null mientras se comprueba la red. El aviso no aparece hasta saberlo: con
+  /// el mensaje equivocado haría más daño que bien.
+  bool? _online;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (ref.read(firstRunHintSeenProvider)) return;
+      final online = await hasConnection();
+      if (mounted) setState(() => _online = online);
+    });
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _dismissHint() async {
+    await ref.read(firstRunHintSeenProvider.notifier).markSeen();
   }
 
   @override
@@ -100,13 +123,6 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      _FavoritesToggle(
-                        active: filter.onlyFavorites,
-                        onTap: () => ref
-                            .read(catalogFilterProvider.notifier)
-                            .toggleFavorites(),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -123,14 +139,14 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                         color: AppColors.textPrimary,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Buscar por título o género…',
-                        prefixIcon: const Icon(
+                        hintText: 'Buscar por título, género o tus notas…',
+                        prefixIcon: Icon(
                           Icons.search,
                           color: AppColors.textMuted,
                         ),
                         suffixIcon: filter.query.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.close,
                                   color: AppColors.textMuted,
                                 ),
@@ -146,47 +162,34 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
+                  // Aviso de bienvenida: solo la primera vez, y solo cuando ya
+                  // se sabe si hay red (el mensaje depende de eso).
+                  if (_online != null && !ref.watch(firstRunHintSeenProvider))
+                    FirstRunHint(
+                      online: _online!,
+                      onSearchOnline: () {
+                        _dismissHint();
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const OnlineSearchScreen(),
+                          ),
+                        );
+                      },
+                      onAddManually: () {
+                        _dismissHint();
+                        _openForm(context);
+                      },
+                      onDismiss: _dismissHint,
+                    ),
                 ],
               ),
             ),
           ),
-          // Chips de filtro rápido por tipo + filtro de género.
+          // Filtros: los tipos siempre a la vista, sin arrastrar nada.
           SliverToBoxAdapter(
-            child: SizedBox(
-              height: 44,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GenreChip(
-                      label: 'Todo',
-                      selected: filter.type == null,
-                      onTap: () =>
-                          ref.read(catalogFilterProvider.notifier).setType(null),
-                    ),
-                  ),
-                  for (final type in ContentType.values)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GenreChip(
-                        label: type.pluralLabel,
-                        icon: type.icon,
-                        selected: filter.type == type,
-                        onTap: () => ref
-                            .read(catalogFilterProvider.notifier)
-                            .setType(filter.type == type ? null : type),
-                      ),
-                    ),
-                  GenreChip(
-                    label: filter.genre ?? 'Género',
-                    icon: Icons.tune,
-                    selected: filter.genre != null,
-                    onTap: () => _openGenreSheet(context),
-                  ),
-                ],
-              ),
+            child: _FilterBar(
+              filter: filter,
+              onOpenFilters: () => _openFiltersSheet(context),
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -257,6 +260,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                                       ContentDetailScreen(contentId: item.id),
                                 ),
                               ),
+                              onLongPress: () =>
+                                  showContentActionsSheet(context, ref, item),
                             ),
                           );
                         },
@@ -276,44 +281,90 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     );
   }
 
-  void _openGenreSheet(BuildContext context) {
-    final current = ref.read(catalogFilterProvider).genre;
+  /// Una sola hoja para lo que no cabe fuera: género y orden. Antes eran dos
+  /// chips distintos en el carrusel; juntarlos deja una sola puerta y libera
+  /// la fila de tipos.
+  void _openFiltersSheet(BuildContext context) {
     showAppBottomSheet<void>(
       context: context,
-      title: 'Filtrar por género',
-      builder: (context, controller) => ListView(
-        controller: controller,
-        padding: const EdgeInsets.all(20),
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              GenreChip(
-                label: 'Todos',
-                selected: current == null,
-                onTap: () {
-                  ref.read(catalogFilterProvider.notifier).setGenre(null);
-                  Navigator.of(context).pop();
-                },
-              ),
-              for (final genre in kGenres)
-                GenreChip(
-                  label: genre,
-                  selected: current == genre,
-                  onTap: () {
-                    ref
-                        .read(catalogFilterProvider.notifier)
-                        .setGenre(current == genre ? null : genre);
-                    Navigator.of(context).pop();
-                  },
+      title: 'Filtros',
+      builder: (sheetContext, controller) {
+        // Se lee dentro del builder para que la hoja se repinte al elegir sin
+        // tener que cerrarla y volver a abrirla.
+        return Consumer(
+          builder: (context, ref, _) {
+            final filter = ref.watch(catalogFilterProvider);
+            final notifier = ref.read(catalogFilterProvider.notifier);
+
+            // Sin búsqueda escrita, "Relevancia" no ordena por nada: se llama
+            // por lo que hace de verdad, enseñar lo último que añadiste.
+            final relevanceLabel =
+                filter.query.trim().isEmpty ? 'Más reciente' : 'Relevancia';
+
+            return ListView(
+              controller: controller,
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              children: [
+                _sheetSection('Ordenar por'),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final sort in CatalogSort.values)
+                      GenreChip(
+                        label: sort == CatalogSort.relevance
+                            ? relevanceLabel
+                            : sort.label,
+                        selected: filter.sort == sort,
+                        onTap: () => notifier.setSort(sort),
+                      ),
+                  ],
                 ),
-            ],
-          ),
-        ],
-      ),
+                const SizedBox(height: 24),
+                _sheetSection('Género'),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    GenreChip(
+                      label: 'Todos',
+                      selected: filter.genre == null,
+                      onTap: () => notifier.setGenre(null),
+                    ),
+                    for (final genre in kGenres)
+                      GenreChip(
+                        label: genre,
+                        selected: filter.genre == genre,
+                        onTap: () => notifier
+                            .setGenre(filter.genre == genre ? null : genre),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SecondaryButton(
+                  label: 'Ver resultados',
+                  isFullWidth: true,
+                  onTap: () => Navigator.of(sheetContext).pop(),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
+
+  Widget _sheetSection(String title) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      );
 }
 
 /// Botón de icono para la cabecera (48dp). Con [highlighted] se tiñe de rojo
@@ -364,33 +415,197 @@ class _HeaderIconButton extends StatelessWidget {
   }
 }
 
-class _FavoritesToggle extends StatelessWidget {
+/// Barra de filtros del catálogo.
+///
+/// Los seis tipos van en un [Wrap] y no en un carrusel: son pocos y fijos, así
+/// que caben enteros y se cambian de un toque. Lo que sí crece —géneros y
+/// orden— se recoge tras un botón, y lo que tengas puesto se ve abajo con su
+/// aspa para quitarlo sin entrar a ningún sitio.
+class _FilterBar extends ConsumerWidget {
+  final CatalogFilter filter;
+  final VoidCallback onOpenFilters;
+
+  const _FilterBar({required this.filter, required this.onOpenFilters});
+
+  /// Filtros escondidos tras el botón. El tipo y favoritos no cuentan: se ven.
+  int get _hiddenCount =>
+      (filter.genre != null ? 1 : 0) +
+      (filter.sort != CatalogSort.relevance ? 1 : 0);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(catalogFilterProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Sin Padding alrededor: el carrusel pone el suyo dentro para poder
+        // arrastrarse de borde a borde en vez de quedarse en una caja.
+        ContentTypeCarousel(
+          types: ContentType.values,
+          selected: filter.type,
+          onSelect: notifier.setType,
+          includeAll: true,
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _FilterButton(
+                    icon: Icons.tune,
+                    label: 'Filtros',
+                    badge: _hiddenCount,
+                    onTap: onOpenFilters,
+                  ),
+                  const SizedBox(width: 10),
+                  _FilterButton(
+                    icon: filter.onlyFavorites
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_outline_rounded,
+                    label: 'Favoritos',
+                    active: filter.onlyFavorites,
+                    onTap: notifier.toggleFavorites,
+                  ),
+                ],
+              ),
+              if (_hiddenCount > 0) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (filter.genre != null)
+                      _ActiveFilterChip(
+                        label: filter.genre!,
+                        onRemove: () => notifier.setGenre(null),
+                      ),
+                    if (filter.sort != CatalogSort.relevance)
+                      _ActiveFilterChip(
+                        label: filter.sort.label,
+                        onRemove: () => notifier.setSort(CatalogSort.relevance),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Botón de la fila de acciones. Con [badge] > 0 muestra cuántos filtros hay
+/// puestos ahí dentro, que si no no se enterarían.
+class _FilterButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int badge;
   final bool active;
   final VoidCallback onTap;
 
-  const _FavoritesToggle({required this.active, required this.onTap});
+  const _FilterButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.badge = 0,
+    this.active = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final on = active || badge > 0;
+    final accent = on ? AppColors.primary : AppColors.textSecondary;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        width: 48,
-        height: 48,
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: active
-              ? AppColors.primary.withValues(alpha: 0.18)
+          color: on
+              ? AppColors.primary.withValues(alpha: 0.14)
               : AppColors.surfaceElevated,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: active ? AppColors.primary : AppColors.border,
-          ),
+          border: Border.all(color: on ? AppColors.primary : AppColors.border),
         ),
-        child: Icon(
-          active ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
-          color: active ? AppColors.primary : AppColors.textSecondary,
-          size: 24,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: accent),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: accent,
+              ),
+            ),
+            if (badge > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                width: 18,
+                height: 18,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '$badge',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Filtro puesto, con su aspa para quitarlo de un toque.
+class _ActiveFilterChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onRemove;
+
+  const _ActiveFilterChip({required this.label, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onRemove,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.secondary.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.close, size: 14, color: AppColors.secondary),
+          ],
         ),
       ),
     );

@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
+import '../../data/models/watch_event.dart';
 import '../../providers/providers.dart';
 import '../../shared/widgets/app_dialog.dart';
 import '../../shared/widgets/content_card.dart';
@@ -88,9 +89,9 @@ class ContentDetailScreen extends ConsumerWidget {
                     _RecommendationCard(item: item),
                     const SizedBox(height: 24),
                   ],
-                  if ((item.rewatchCount ?? 0) > 0 ||
-                      (item.watchDate != null &&
-                          item.status == WatchStatus.completed)) ...[
+                  if (item.watchLog.isNotEmpty ||
+                      item.status == WatchStatus.completed ||
+                      item.status == WatchStatus.rewatchPending) ...[
                     _sectionTitle('Historial de visionado'),
                     _WatchHistory(item: item),
                     const SizedBox(height: 24),
@@ -346,14 +347,21 @@ class ContentDetailScreen extends ConsumerWidget {
       if (item.releaseDate != null)
         ('Año', item.releaseDate!.year.toString()),
       (
-        item.type.hasEpisodes ? 'Por episodio' : 'Duración',
+        item.type.hasEpisodes ? 'Por ${item.type.unitLabel}' : 'Duración',
         formatDuration(item.durationMinutes),
       ),
-      if (item.episodes != null) ('Episodios', '${item.episodes}'),
+      if (item.episodes != null)
+        (
+          item.type.unitsLabel[0].toUpperCase() +
+              item.type.unitsLabel.substring(1),
+          '${item.episodes}',
+        ),
       ('Agregada', formatRelative(item.addedAt)),
       if (item.watchDate != null)
         (
-          item.status == WatchStatus.completed ? 'Vista el' : 'Programada',
+          item.status == WatchStatus.completed
+              ? (item.type.isRead ? 'Leída el' : 'Vista el')
+              : 'Programada',
           formatDate(item.watchDate!),
         ),
       if (item.notifyMe && item.notificationDate != null)
@@ -624,7 +632,9 @@ class _EpisodeProgress extends ConsumerWidget {
       } else if (clamped > 0 && item.status == WatchStatus.notStarted) {
         updated = updated.copyWith(status: WatchStatus.watching);
       }
-      await actions.save(updated);
+      // Anota en el diario los episodios nuevos. Si el usuario corrige el
+      // contador hacia atrás no se registra nada.
+      await actions.save(updated.logProgressSince(item));
     }
 
     return Container(
@@ -641,7 +651,7 @@ class _EpisodeProgress extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Progreso de episodios',
+                  'Progreso de ${item.type.unitsLabel}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
@@ -682,7 +692,7 @@ class _EpisodeProgress extends ConsumerWidget {
                         current > 0 ? () => setEpisode(current - 1) : null,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: AppColors.border),
+                      side: BorderSide(color: AppColors.border),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -874,14 +884,82 @@ class _RecommendationCard extends StatelessWidget {
   }
 }
 
-class _WatchHistory extends StatelessWidget {
+/// Diario de visionados: cuándo se vio y cuánto, con opción de añadir a mano
+/// una vuelta antigua o borrar un registro equivocado.
+class _WatchHistory extends ConsumerWidget {
   final ContentItem item;
 
   const _WatchHistory({required this.item});
 
+  Future<void> _addEvent(BuildContext context, WidgetRef ref) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(1950),
+      lastDate: now,
+      helpText: '¿Cuándo lo viste?',
+    );
+    if (picked == null) return;
+
+    // Una vuelta entera: la duración total del título.
+    final minutes = item.totalMinutes;
+    if (minutes <= 0) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ponle una duración al título para poder anotarlo.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final log = [
+      ...item.watchLog,
+      WatchEvent(
+        date: picked,
+        minutes: minutes,
+        episodes: item.type.hasEpisodes ? item.episodes : null,
+      ),
+    ]..sort((a, b) => a.date.compareTo(b.date));
+
+    await ref.read(contentActionsProvider).save(item.copyWith(
+          watchLog: log,
+          rewatchCount: log.length > 1 ? log.length - 1 : null,
+          watchDate: log.last.date,
+        ));
+  }
+
+  Future<void> _removeEvent(
+    BuildContext context,
+    WidgetRef ref,
+    WatchEvent event,
+  ) async {
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: '¿Borrar este visionado?',
+      message:
+          'Se quitará del diario el del ${formatDate(event.date)}. Tus estadísticas se recalculan.',
+      confirmLabel: 'Borrar',
+      icon: Icons.delete_outline,
+      accent: AppColors.error,
+    );
+    if (!confirmed) return;
+
+    final log = [...item.watchLog]..remove(event);
+    await ref.read(contentActionsProvider).save(item.copyWith(
+          watchLog: log,
+          rewatchCount: log.length > 1 ? log.length - 1 : null,
+          watchDate: log.isEmpty ? null : log.last.date,
+          clearWatchDate: log.isEmpty,
+        ));
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final rewatches = item.rewatchCount ?? 0;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Del más reciente al más antiguo: lo último es lo que interesa.
+    final events = item.watchLog.reversed.toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -890,18 +968,16 @@ class _WatchHistory extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.history, color: AppColors.success, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  rewatches > 0
-                      ? 'Vista ${rewatches + 1} veces'
-                      : 'Vista 1 vez',
+          Row(
+            children: [
+              const Icon(Icons.history, color: AppColors.success, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  events.length == 1 ? 'Visto 1 vez' : 'Visto ${events.length} veces',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
@@ -910,18 +986,103 @@ class _WatchHistory extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                if (item.watchDate != null)
-                  Text(
-                    'Última vez: ${formatDate(item.watchDate!)} (${formatRelative(item.watchDate!)})',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+              ),
+              if (item.loggedMinutes > 0)
+                Text(
+                  formatLongDuration(item.loggedMinutes),
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.secondary,
                   ),
+                ),
+            ],
+          ),
+          if (events.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            for (final event in events)
+              _WatchEventRow(
+                event: event,
+                type: item.type,
+                onDelete: () => _removeEvent(context, ref, event),
+              ),
+          ],
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => _addEvent(context, ref),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Anotar otro visionado'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.secondary,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WatchEventRow extends StatelessWidget {
+  final WatchEvent event;
+  final ContentType type;
+  final VoidCallback onDelete;
+
+  const _WatchEventRow({
+    required this.event,
+    required this.type,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final units = event.episodes;
+    final detail = [
+      formatDuration(event.minutes),
+      if (units != null && units > 0)
+        '$units ${units == 1 ? type.unitLabel : type.unitsLabel}',
+    ].join(' · ');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  formatDate(event.date),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  '$detail · ${formatRelative(event.date)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ],
             ),
+          ),
+          IconButton(
+            onPressed: onDelete,
+            icon: const Icon(Icons.close, size: 16),
+            color: AppColors.textMuted,
+            tooltip: 'Borrar este visionado',
+            visualDensity: VisualDensity.compact,
           ),
         ],
       ),

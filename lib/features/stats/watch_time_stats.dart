@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/content_item.dart';
 import '../../providers/providers.dart';
 
-/// Minutos y nº de títulos vistos en un mes concreto.
+/// Minutos y nº de visionados de un mes concreto.
 class MonthBucket {
   final DateTime month; // primer día del mes
   final int minutes;
+
+  /// Visionados del mes, no títulos distintos: ver dos veces la misma película
+  /// en el mismo mes cuenta dos, igual que sus minutos se suman dos veces.
   final int count;
 
   const MonthBucket({
@@ -111,14 +114,49 @@ WatchTimeStats computeWatchTimeStats(
     if (!_isWatched(item)) continue;
 
     completed++;
-    final minutes = item.watchedMinutes;
-    total += minutes;
-    byType[item.type] = (byType[item.type] ?? 0) + minutes;
 
     if (item.totalMinutes > 0 &&
         (longest == null || item.totalMinutes > longest.totalMinutes)) {
       longest = item;
     }
+
+    // Con diario manda el diario: cada visionado cuenta en su propio día, así
+    // que las repeticiones ya no se amontonan todas en la misma fecha.
+    if (item.watchLog.isNotEmpty) {
+      var countedThisYear = false;
+      for (final event in item.watchLog) {
+        if (event.date.isAfter(today)) continue;
+        final minutes = event.minutes;
+        total += minutes;
+        byType[item.type] = (byType[item.type] ?? 0) + minutes;
+
+        final day = event.day;
+        watchedDays.add(day);
+
+        if (day.year == today.year) {
+          thisYear += minutes;
+          // El título cuenta una vez al año aunque lo hayas visto varias.
+          if (!countedThisYear) {
+            seenThisYear++;
+            countedThisYear = true;
+          }
+          if (day.month == today.month) thisMonth += minutes;
+        }
+
+        if (!day.isBefore(windowStart)) {
+          final key = monthKey(day);
+          monthMinutes[key] = (monthMinutes[key] ?? 0) + minutes;
+          monthCount[key] = (monthCount[key] ?? 0) + 1;
+        }
+      }
+      continue;
+    }
+
+    // Sin diario (visto pero nunca registrado): se estima desde la duración,
+    // como se hacía antes. La migración deja pocos casos así.
+    final minutes = item.watchedMinutes;
+    total += minutes;
+    byType[item.type] = (byType[item.type] ?? 0) + minutes;
 
     final wd = item.watchDate;
     if (wd == null || wd.isAfter(today)) continue;

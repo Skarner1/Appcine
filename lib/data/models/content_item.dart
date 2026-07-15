@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import 'watch_event.dart';
 
-enum ContentType { movie, series, documentary, anime, shortFilm }
+/// Tipos de contenido del catálogo.
+///
+/// Los valores nuevos van SIEMPRE al final: Hive los guarda por índice, así que
+/// reordenarlos convertiría las películas de todo el mundo en otra cosa.
+enum ContentType { movie, series, documentary, anime, shortFilm, book, manga }
 
 enum WatchStatus {
   notStarted, // Falta ver
@@ -22,6 +27,8 @@ extension ContentTypeX on ContentType {
         ContentType.documentary => 'Documental',
         ContentType.anime => 'Anime',
         ContentType.shortFilm => 'Cortometraje',
+        ContentType.book => 'Libro',
+        ContentType.manga => 'Manga',
       };
 
   String get pluralLabel => switch (this) {
@@ -30,6 +37,8 @@ extension ContentTypeX on ContentType {
         ContentType.documentary => 'Documentales',
         ContentType.anime => 'Animes',
         ContentType.shortFilm => 'Cortos',
+        ContentType.book => 'Libros',
+        ContentType.manga => 'Mangas',
       };
 
   String get emoji => switch (this) {
@@ -38,6 +47,8 @@ extension ContentTypeX on ContentType {
         ContentType.documentary => '🎞️',
         ContentType.anime => '🌸',
         ContentType.shortFilm => '⏱️',
+        ContentType.book => '📖',
+        ContentType.manga => '📙',
       };
 
   IconData get icon => switch (this) {
@@ -46,10 +57,33 @@ extension ContentTypeX on ContentType {
         ContentType.documentary => Icons.camera_roll_outlined,
         ContentType.anime => Icons.animation_outlined,
         ContentType.shortFilm => Icons.timelapse_outlined,
+        ContentType.book => Icons.menu_book_outlined,
+        ContentType.manga => Icons.auto_stories_outlined,
       };
 
-  /// Los tipos episódicos manejan episodios y progreso.
-  bool get hasEpisodes => this == ContentType.series || this == ContentType.anime;
+  /// Tipos que se llevan por partes numeradas y guardan progreso: episodios en
+  /// series y anime, tomos en libros y mangas. Unos y otros comparten los campos
+  /// `episodes` / `currentEpisode`; lo que cambia es cómo se llaman de cara al
+  /// usuario (ver [unitLabel]).
+  bool get hasEpisodes =>
+      this == ContentType.series ||
+      this == ContentType.anime ||
+      this == ContentType.book ||
+      this == ContentType.manga;
+
+  /// Cómo se llama cada parte en este tipo. Un manga tiene tomos, no episodios.
+  String get unitLabel => switch (this) {
+        ContentType.book || ContentType.manga => 'tomo',
+        _ => 'episodio',
+      };
+
+  String get unitsLabel => switch (this) {
+        ContentType.book || ContentType.manga => 'tomos',
+        _ => 'episodios',
+      };
+
+  /// Lo que se lee no se "ve". Cambia los verbos de la interfaz.
+  bool get isRead => this == ContentType.book || this == ContentType.manga;
 }
 
 extension WatchStatusX on WatchStatus {
@@ -114,6 +148,11 @@ class ContentItem {
   final int? rewatchCount;
   final bool isFavorite;
 
+  /// Diario de visionados, del más antiguo al más reciente. Fuente de verdad de
+  /// *cuándo* se vio esto y cuánto; [watchDate] no sirve porque es una sola
+  /// fecha y además se usa para programar visionados futuros.
+  final List<WatchEvent> watchLog;
+
   const ContentItem({
     required this.id,
     required this.title,
@@ -136,6 +175,7 @@ class ContentItem {
     this.notificationDate,
     this.rewatchCount,
     this.isFavorite = false,
+    this.watchLog = const [],
   });
 
   /// Minutos totales estimados si se completa todo el contenido.
@@ -146,9 +186,12 @@ class ContentItem {
   /// Minutos ya vistos según estado y progreso.
   int get watchedMinutes {
     if (type.hasEpisodes) {
+      // Terminado y sin saber cuántas partes tiene: cuenta como una. Es el caso
+      // normal de un libro suelto (no tiene tomos), y antes daba cero minutos
+      // aunque estuviera leído entero.
       final seen = status == WatchStatus.completed ||
               status == WatchStatus.rewatchPending
-          ? (episodes ?? currentEpisode ?? 0)
+          ? (episodes ?? currentEpisode ?? 1)
           : (currentEpisode ?? 0);
       return durationMinutes * seen;
     }
@@ -163,6 +206,37 @@ class ContentItem {
   }
 
   bool get isRecommendation => source == ContentSource.friendRecommended;
+
+  /// Minutos del diario. Cuando hay diario manda él sobre [watchedMinutes]:
+  /// es lo que de verdad se vio, no una estimación desde la duración actual.
+  int get loggedMinutes =>
+      watchLog.fold(0, (sum, event) => sum + event.minutes);
+
+  /// Copia con el avance de visionado respecto a [previous] anotado en el
+  /// diario, o este mismo ítem si no se vio nada nuevo.
+  ///
+  /// El evento se mide como el incremento de [watchedMinutes], que cubre por
+  /// igual los dos casos: una película revista suma su duración entera y una
+  /// serie suma solo el tramo de episodios nuevos.
+  ContentItem logProgressSince(ContentItem previous, {DateTime? at}) {
+    final minutes = watchedMinutes - previous.watchedMinutes;
+    if (minutes <= 0) return this;
+
+    final newEpisodes = type.hasEpisodes
+        ? (currentEpisode ?? 0) - (previous.currentEpisode ?? 0)
+        : null;
+
+    return copyWith(
+      watchLog: [
+        ...watchLog,
+        WatchEvent(
+          date: at ?? DateTime.now(),
+          minutes: minutes,
+          episodes: (newEpisodes != null && newEpisodes > 0) ? newEpisodes : null,
+        ),
+      ],
+    );
+  }
 
   ContentItem copyWith({
     String? id,
@@ -186,6 +260,7 @@ class ContentItem {
     DateTime? notificationDate,
     int? rewatchCount,
     bool? isFavorite,
+    List<WatchEvent>? watchLog,
     bool clearEpisodes = false,
     bool clearUserRating = false,
     bool clearPersonalNote = false,
@@ -223,6 +298,7 @@ class ContentItem {
           : (notificationDate ?? this.notificationDate),
       rewatchCount: rewatchCount ?? this.rewatchCount,
       isFavorite: isFavorite ?? this.isFavorite,
+      watchLog: watchLog ?? this.watchLog,
     );
   }
 
@@ -248,6 +324,7 @@ class ContentItem {
         'notificationDate': notificationDate?.toIso8601String(),
         'rewatchCount': rewatchCount,
         'isFavorite': isFavorite,
+        'watchLog': watchLog.map((e) => e.toJson()).toList(),
       };
 
   factory ContentItem.fromJson(Map<String, dynamic> json) {
@@ -278,6 +355,11 @@ class ContentItem {
       notificationDate: parseDate(json['notificationDate']),
       rewatchCount: (json['rewatchCount'] as num?)?.toInt(),
       isFavorite: json['isFavorite'] as bool? ?? false,
+      // Los backups y catálogos compartidos anteriores al diario no lo traen.
+      watchLog: (json['watchLog'] as List?)
+              ?.map((e) => WatchEvent.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          const [],
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/content_item.dart';
 import '../../data/models/online_result.dart';
 import '../../data/services/online_search_service.dart';
+import '../../shared/widgets/content_type_carousel.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/poster_image.dart';
 import '../content_form/content_form_screen.dart';
@@ -42,11 +43,14 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
   Future<List<OnlineResult>>? _future;
   String _query = '';
 
-  // Categorías buscables online.
+  // Categorías buscables online. Documentales y cortos no están: Cinemeta los
+  // devuelve mezclados con las películas, así que tendrían el mismo buscador.
   static const _types = [
     ContentType.movie,
     ContentType.series,
     ContentType.anime,
+    ContentType.manga,
+    ContentType.book,
   ];
 
   @override
@@ -131,18 +135,24 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            if (widget.lockedType == null) ...[
+              const SizedBox(height: 8),
+              // El mismo carrusel del catálogo: aquí antes era un segmentado
+              // que repartía el ancho entre los tipos, y al pasar de tres a
+              // cinco empezó a cortar las etiquetas.
+              ContentTypeCarousel(
+                types: _types,
+                selected: _type,
+                onSelect: (type) {
+                  if (type != null) _selectType(type);
+                },
+              ),
+              const SizedBox(height: 6),
+            ],
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
               child: Column(
                 children: [
-                  if (widget.lockedType == null) ...[
-                    _TypeSelector(
-                      types: _types,
-                      selected: _type,
-                      onSelect: _selectType,
-                    ),
-                    const SizedBox(height: 14),
-                  ],
                   TextField(
                     controller: _controller,
                     autofocus: true,
@@ -156,10 +166,10 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
                     decoration: InputDecoration(
                       hintText: _hintForType(),
                       prefixIcon:
-                          const Icon(Icons.search, color: AppColors.textMuted),
+                          Icon(Icons.search, color: AppColors.textMuted),
                       suffixIcon: _controller.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.close,
+                              icon: Icon(Icons.close,
                                   color: AppColors.textMuted),
                               onPressed: () {
                                 _debounce?.cancel();
@@ -183,6 +193,8 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
   String _hintForType() => switch (_type) {
         ContentType.series => 'Ej. Breaking Bad, Dark…',
         ContentType.anime => 'Ej. Naruto, Frieren…',
+        ContentType.manga => 'Ej. Berserk, One Piece…',
+        ContentType.book => 'Ej. Dune, Cien años de soledad…',
         _ => 'Ej. Interstellar, Matrix…',
       };
 
@@ -201,7 +213,12 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
           return EmptyState(
             icon: Icons.wifi_off_rounded,
             title: 'Sin conexión',
-            message: snapshot.error.toString(),
+            // En pickerMode ya está en el formulario: decirle que lo agregue a
+            // mano sería absurdo, es justo lo que está haciendo.
+            message: widget.pickerMode
+                ? snapshot.error.toString()
+                : '${snapshot.error}\n\nTambién puedes agregarlo a mano ahora y '
+                    'traerle la portada desde internet cuando vuelvas a tener red.',
             actionLabel: 'Reintentar',
             onAction: () => _runSearch(_query, force: true),
           );
@@ -230,89 +247,6 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
   }
 }
 
-/// Selector segmentado de categoría (Película / Serie / Anime).
-class _TypeSelector extends StatelessWidget {
-  final List<ContentType> types;
-  final ContentType selected;
-  final ValueChanged<ContentType> onSelect;
-
-  const _TypeSelector({
-    required this.types,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          for (final type in types)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onSelect(type),
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    gradient: type == selected
-                        ? const LinearGradient(colors: AppColors.primaryGradient)
-                        : null,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: type == selected
-                        ? [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        type.icon,
-                        size: 16,
-                        color: type == selected
-                            ? Colors.white
-                            : AppColors.textSecondary,
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          type.pluralLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: type == selected
-                                ? Colors.white
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
 
 /// Fila de resultado: póster + título, metadatos, valoración y botón agregar.
 class _ResultTile extends StatelessWidget {

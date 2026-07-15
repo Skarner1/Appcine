@@ -12,12 +12,14 @@ import 'status_badge.dart';
 class HorizontalContentCard extends StatelessWidget {
   final ContentItem item;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final Widget? trailing;
 
   const HorizontalContentCard({
     super.key,
     required this.item,
     this.onTap,
+    this.onLongPress,
     this.trailing,
   });
 
@@ -31,6 +33,7 @@ class HorizontalContentCard extends StatelessWidget {
 
     return ScaleTap(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -196,9 +199,12 @@ class HorizontalContentCard extends StatelessWidget {
   String _metaText() {
     final parts = <String>[];
     if (item.type.hasEpisodes) {
-      if (item.episodes != null) parts.add('${item.episodes} episodios');
+      if (item.episodes != null) {
+        parts.add('${item.episodes} ${item.type.unitsLabel}');
+      }
       if (item.durationMinutes > 0) {
-        parts.add('${formatDuration(item.durationMinutes)}/ep');
+        final unit = item.type.isRead ? 'tomo' : 'ep';
+        parts.add('${formatDuration(item.durationMinutes)}/$unit');
       }
     } else if (item.durationMinutes > 0) {
       parts.add(formatDuration(item.durationMinutes));

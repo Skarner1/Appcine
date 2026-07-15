@@ -32,13 +32,26 @@ class FadeSlidePageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-/// Tema único de CineLog Pro: dark mode nativo, premium y cinematográfico.
+/// Tema de CineLog Pro: cinematográfico y premium, disponible en claro y oscuro.
+///
+/// Ambos temas se construyen desde una [AppPalette] explícita en [_build]. Las
+/// pantallas leen los colores por medio de los getters de [AppColors], así que
+/// además de pasar el tema hay que fijar la paleta activa con
+/// [AppColors.setBrightness] (lo hace `CineLogApp`).
 class AppTheme {
   AppTheme._();
 
-  static TextTheme _textTheme() {
-    final poppins = GoogleFonts.poppins(color: AppColors.textPrimary);
-    final inter = GoogleFonts.inter(color: AppColors.textPrimary);
+  /// Tema oscuro (paleta original).
+  static ThemeData dark() =>
+      _build(AppColors.darkPalette, Brightness.dark);
+
+  /// Tema claro.
+  static ThemeData light() =>
+      _build(AppColors.lightPalette, Brightness.light);
+
+  static TextTheme _textTheme(AppPalette c) {
+    final poppins = GoogleFonts.poppins(color: c.textPrimary);
+    final inter = GoogleFonts.inter(color: c.textPrimary);
 
     return TextTheme(
       // Títulos — Poppins. Interletrado negativo y ajustado para un look
@@ -93,7 +106,7 @@ class AppTheme {
         fontWeight: FontWeight.w400,
         height: 1.4,
         letterSpacing: 0.1,
-        color: AppColors.textSecondary,
+        color: c.textSecondary,
       ),
       labelLarge: inter.copyWith(
           fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.3),
@@ -103,37 +116,38 @@ class AppTheme {
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.4,
-        color: AppColors.textSecondary,
+        color: c.textSecondary,
       ),
     );
   }
 
-  static ThemeData dark() {
-    final textTheme = _textTheme();
+  static ThemeData _build(AppPalette c, Brightness brightness) {
+    final textTheme = _textTheme(c);
 
-    const colorScheme = ColorScheme.dark(
+    final colorScheme = ColorScheme(
+      brightness: brightness,
       primary: AppColors.primary,
       onPrimary: Colors.white,
       secondary: AppColors.secondary,
       onSecondary: Colors.black,
       tertiary: AppColors.tertiary,
       onTertiary: Colors.black,
-      surface: AppColors.surface,
-      onSurface: AppColors.textPrimary,
-      surfaceContainerHighest: AppColors.surfaceElevated,
-      onSurfaceVariant: AppColors.textSecondary,
+      surface: c.surface,
+      onSurface: c.textPrimary,
+      surfaceContainerHighest: c.surfaceElevated,
+      onSurfaceVariant: c.textSecondary,
       error: AppColors.error,
       onError: Colors.white,
-      outline: AppColors.border,
-      outlineVariant: AppColors.divider,
+      outline: c.border,
+      outlineVariant: c.divider,
     );
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: AppColors.background,
-      canvasColor: AppColors.background,
+      scaffoldBackgroundColor: c.background,
+      canvasColor: c.background,
       textTheme: textTheme,
       splashFactory: InkSparkle.splashFactory,
       pageTransitionsTheme: const PageTransitionsTheme(
@@ -146,8 +160,8 @@ class AppTheme {
         },
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: c.background,
+        foregroundColor: c.textPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
@@ -155,19 +169,19 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceElevated,
-        hintStyle: textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+        fillColor: c.surfaceElevated,
+        hintStyle: textTheme.bodyMedium?.copyWith(color: c.textMuted),
         labelStyle:
-            textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            textTheme.bodyMedium?.copyWith(color: c.textSecondary),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: c.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: c.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -183,44 +197,44 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: AppColors.surface,
+        color: c.surface,
         elevation: 2,
         shadowColor: Colors.black.withValues(alpha: 0.3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: c.border),
         ),
         margin: EdgeInsets.zero,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: c.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titleTextStyle: textTheme.titleLarge,
         contentTextStyle: textTheme.bodyMedium,
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: AppColors.surface,
-        modalBackgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: c.surface,
+        modalBackgroundColor: c.surface,
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         showDragHandle: false,
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.surfaceElevated,
+        backgroundColor: c.surfaceElevated,
         selectedColor: AppColors.primary,
         labelStyle: textTheme.labelMedium,
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: c.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       ),
-      dividerTheme: const DividerThemeData(
-        color: AppColors.divider,
+      dividerTheme: DividerThemeData(
+        color: c.divider,
         thickness: 1,
         space: 1,
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.surfaceElevated,
+        backgroundColor: c.surfaceElevated,
         contentTextStyle: textTheme.bodyMedium,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -229,53 +243,53 @@ class AppTheme {
         thumbColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? Colors.white
-              : AppColors.textMuted,
+              : c.textMuted,
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? AppColors.primary
-              : AppColors.surfaceElevated,
+              : c.surfaceElevated,
         ),
         trackOutlineColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? AppColors.primary
-              : AppColors.border,
+              : c.border,
         ),
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: AppColors.primary,
-        inactiveTrackColor: AppColors.surfaceElevated,
+        inactiveTrackColor: c.surfaceElevated,
         thumbColor: Colors.white,
         overlayColor: AppColors.primary.withValues(alpha: 0.15),
-        valueIndicatorColor: AppColors.surfaceElevated,
+        valueIndicatorColor: c.surfaceElevated,
         valueIndicatorTextStyle: textTheme.labelMedium,
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.primary,
-        linearTrackColor: AppColors.surfaceElevated,
-        circularTrackColor: AppColors.surfaceElevated,
+        linearTrackColor: c.surfaceElevated,
+        circularTrackColor: c.surfaceElevated,
       ),
       datePickerTheme: DatePickerThemeData(
-        backgroundColor: AppColors.surface,
-        headerBackgroundColor: AppColors.surfaceElevated,
-        headerForegroundColor: AppColors.textPrimary,
+        backgroundColor: c.surface,
+        headerBackgroundColor: c.surfaceElevated,
+        headerForegroundColor: c.textPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       timePickerTheme: TimePickerThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: c.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       listTileTheme: ListTileThemeData(
-        iconColor: AppColors.textSecondary,
-        textColor: AppColors.textPrimary,
+        iconColor: c.textSecondary,
+        textColor: c.textPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
-      iconTheme: const IconThemeData(color: AppColors.textPrimary, size: 24),
+      iconTheme: IconThemeData(color: c.textPrimary, size: 24),
       popupMenuTheme: PopupMenuThemeData(
-        color: AppColors.surfaceElevated,
+        color: c.surfaceElevated,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: c.border),
         ),
         textStyle: textTheme.bodyMedium,
       ),

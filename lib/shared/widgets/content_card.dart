@@ -13,13 +13,20 @@ import 'status_badge.dart';
 class ContentCard extends StatelessWidget {
   final ContentItem item;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
-  const ContentCard({super.key, required this.item, this.onTap});
+  const ContentCard({
+    super.key,
+    required this.item,
+    this.onTap,
+    this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ScaleTap(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),

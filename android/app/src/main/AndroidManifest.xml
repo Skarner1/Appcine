@@ -6,6 +6,11 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Leer el QR del catálogo de otro móvil (mobile_scanner). El
+         reconocimiento ocurre en el aparato: la imagen no sale de aquí. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- La cámara no es imprescindible: sin ella todo funciona menos el QR. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
         android:label="CineLog Pro"
         android:name="${applicationName}"

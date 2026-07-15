@@ -1,9 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 
 import '../core/services/notification_service.dart';
 import '../data/models/content_item.dart';
 import '../data/repositories/content_repository.dart';
+import '../data/services/auto_backup_service.dart';
+import '../data/services/poster_store.dart';
+import '../features/catalog/catalog_search.dart';
 
 /// Repositorio de contenido. Se inyecta ya inicializado desde main().
 final contentRepositoryProvider = Provider<ContentRepository>(
@@ -39,22 +43,29 @@ class CatalogFilter {
   final ContentType? type; // null = Todo
   final String? genre; // null = todos los géneros
   final bool onlyFavorites;
+  final CatalogSort sort;
 
   const CatalogFilter({
     this.query = '',
     this.type,
     this.genre,
     this.onlyFavorites = false,
+    this.sort = CatalogSort.relevance,
   });
 
   bool get hasActiveFilters =>
-      query.isNotEmpty || type != null || genre != null || onlyFavorites;
+      query.isNotEmpty ||
+      type != null ||
+      genre != null ||
+      onlyFavorites ||
+      sort != CatalogSort.relevance;
 
   CatalogFilter copyWith({
     String? query,
     ContentType? type,
     String? genre,
     bool? onlyFavorites,
+    CatalogSort? sort,
     bool clearType = false,
     bool clearGenre = false,
   }) {
@@ -63,6 +74,7 @@ class CatalogFilter {
       type: clearType ? null : (type ?? this.type),
       genre: clearGenre ? null : (genre ?? this.genre),
       onlyFavorites: onlyFavorites ?? this.onlyFavorites,
+      sort: sort ?? this.sort,
     );
   }
 }
@@ -84,6 +96,8 @@ class CatalogFilterNotifier extends Notifier<CatalogFilter> {
   void toggleFavorites() =>
       state = state.copyWith(onlyFavorites: !state.onlyFavorites);
 
+  void setSort(CatalogSort sort) => state = state.copyWith(sort: sort);
+
   void clear() => state = const CatalogFilter();
 }
 
@@ -92,26 +106,21 @@ final catalogFilterProvider =
   CatalogFilterNotifier.new,
 );
 
-/// Catálogo filtrado por búsqueda, tipo, género y favoritos.
+/// Catálogo filtrado por búsqueda, tipo, género y favoritos, ya ordenado.
+/// La búsqueda ignora tildes, aguanta erratas y mira también tus notas
+/// (ver [searchCatalog]).
 final filteredCatalogProvider = Provider<List<ContentItem>>((ref) {
   final items = ref.watch(contentListProvider).value ?? const <ContentItem>[];
   final filter = ref.watch(catalogFilterProvider);
 
-  return items.where((item) {
-    if (filter.type != null && item.type != filter.type) return false;
-    if (filter.genre != null && !item.genres.contains(filter.genre)) {
-      return false;
-    }
-    if (filter.onlyFavorites && !item.isFavorite) return false;
-    if (filter.query.isNotEmpty) {
-      final query = filter.query.toLowerCase();
-      final inTitle = item.title.toLowerCase().contains(query);
-      final inGenres =
-          item.genres.any((g) => g.toLowerCase().contains(query));
-      if (!inTitle && !inGenres) return false;
-    }
-    return true;
-  }).toList();
+  return searchCatalog(
+    items,
+    query: filter.query,
+    type: filter.type,
+    genre: filter.genre,
+    onlyFavorites: filter.onlyFavorites,
+    sort: filter.sort,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -327,6 +336,150 @@ final profileNameProvider =
     NotifierProvider<ProfileNameNotifier, String>(ProfileNameNotifier.new);
 
 // ---------------------------------------------------------------------------
+// Tema: claro / oscuro / sistema
+// ---------------------------------------------------------------------------
+
+/// Modo de tema elegido por el usuario. Se persiste en el box de ajustes con
+/// la clave `theme_mode` guardando `ThemeMode.name` ('system' | 'light' | 'dark').
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  static const _key = 'theme_mode';
+
+  @override
+  ThemeMode build() {
+    final box = ref.watch(settingsBoxProvider);
+    return _parse(box.get(_key) as String?);
+  }
+
+  static ThemeMode _parse(String? value) => switch (value) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      };
+
+  Future<void> setMode(ThemeMode mode) async {
+    if (mode == state) return;
+    await ref.read(settingsBoxProvider).put(_key, mode.name);
+    state = mode;
+  }
+}
+
+final themeModeProvider =
+    NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
+
+// ---------------------------------------------------------------------------
+// Recordatorios de lo que dejaste a medias
+// ---------------------------------------------------------------------------
+
+/// Si la app avisa de los títulos que llevas tiempo sin retomar.
+class StalledReminderEnabledNotifier extends Notifier<bool> {
+  static const _key = 'stalled_reminders_enabled';
+
+  @override
+  bool build() => ref.watch(settingsBoxProvider).get(_key) as bool? ?? true;
+
+  Future<void> setEnabled(bool value) async {
+    if (value == state) return;
+    await ref.read(settingsBoxProvider).put(_key, value);
+    state = value;
+  }
+}
+
+final stalledReminderEnabledProvider =
+    NotifierProvider<StalledReminderEnabledNotifier, bool>(
+  StalledReminderEnabledNotifier.new,
+);
+
+/// Días sin tocar un título antes de que la app diga algo.
+class StalledReminderDaysNotifier extends Notifier<int> {
+  static const _key = 'stalled_reminders_days';
+  static const options = [7, 14, 30];
+  static const defaultDays = 14;
+
+  @override
+  int build() {
+    final stored = ref.watch(settingsBoxProvider).get(_key) as int?;
+    return options.contains(stored) ? stored! : defaultDays;
+  }
+
+  Future<void> setDays(int value) async {
+    if (value == state || !options.contains(value)) return;
+    await ref.read(settingsBoxProvider).put(_key, value);
+    state = value;
+  }
+}
+
+final stalledReminderDaysProvider =
+    NotifierProvider<StalledReminderDaysNotifier, int>(
+  StalledReminderDaysNotifier.new,
+);
+
+// ---------------------------------------------------------------------------
+// Copias de seguridad automáticas
+// ---------------------------------------------------------------------------
+
+/// Si la app se guarda copias del catálogo por su cuenta.
+class AutoBackupEnabledNotifier extends Notifier<bool> {
+  static const _key = 'auto_backup_enabled';
+
+  @override
+  bool build() => ref.watch(settingsBoxProvider).get(_key) as bool? ?? true;
+
+  Future<void> setEnabled(bool value) async {
+    if (value == state) return;
+    await ref.read(settingsBoxProvider).put(_key, value);
+    state = value;
+  }
+}
+
+final autoBackupEnabledProvider =
+    NotifierProvider<AutoBackupEnabledNotifier, bool>(
+  AutoBackupEnabledNotifier.new,
+);
+
+/// Cada cuánto se guarda la copia automática.
+class AutoBackupFrequencyNotifier extends Notifier<BackupFrequency> {
+  static const _key = 'auto_backup_frequency';
+
+  @override
+  BackupFrequency build() {
+    final stored = ref.watch(settingsBoxProvider).get(_key) as String?;
+    return BackupFrequency.values.asNameMap()[stored] ?? BackupFrequency.daily;
+  }
+
+  Future<void> setFrequency(BackupFrequency value) async {
+    if (value == state) return;
+    await ref.read(settingsBoxProvider).put(_key, value.name);
+    state = value;
+  }
+}
+
+final autoBackupFrequencyProvider =
+    NotifierProvider<AutoBackupFrequencyNotifier, BackupFrequency>(
+  AutoBackupFrequencyNotifier.new,
+);
+
+/// Cuándo se hizo la última copia automática.
+class AutoBackupLastRunNotifier extends Notifier<DateTime?> {
+  static const _key = 'auto_backup_last_run';
+
+  @override
+  DateTime? build() {
+    final stored = ref.watch(settingsBoxProvider).get(_key) as String?;
+    return stored == null ? null : DateTime.tryParse(stored);
+  }
+
+  Future<void> markRun(DateTime when) async {
+    await ref.read(settingsBoxProvider).put(_key, when.toIso8601String());
+    state = when;
+  }
+}
+
+final autoBackupLastRunProvider =
+    NotifierProvider<AutoBackupLastRunNotifier, DateTime?>(
+  AutoBackupLastRunNotifier.new,
+);
+
+// ---------------------------------------------------------------------------
 // Acciones sobre contenido (guardar + sincronizar notificaciones)
 // ---------------------------------------------------------------------------
 
@@ -346,6 +499,9 @@ class ContentActions {
   Future<void> delete(ContentItem item) async {
     await NotificationService.instance.cancelForContent(item.id);
     await _repo.delete(item.id);
+    // El póster local se va con su ficha: si no, queda ocupando sitio para
+    // siempre sin que nadie lo vea.
+    await _ref.read(posterStoreProvider).delete(item.posterUrl);
   }
 
   Future<void> _syncNotification(ContentItem item) async {
@@ -360,11 +516,12 @@ class ContentActions {
     }
   }
 
-  /// Marca como visto: completa episodios, fija fecha y cancela recordatorio.
+  /// Marca como visto: completa episodios, fija fecha, anota el visionado en el
+  /// diario y cancela el recordatorio.
   Future<void> markCompleted(ContentItem item) async {
     final wasSeen = item.status == WatchStatus.completed ||
         item.status == WatchStatus.rewatchPending;
-    await save(item.copyWith(
+    final updated = item.copyWith(
       status: WatchStatus.completed,
       currentEpisode: item.type.hasEpisodes ? item.episodes : null,
       watchDate: DateTime.now(),
@@ -372,7 +529,8 @@ class ContentActions {
           wasSeen ? (item.rewatchCount ?? 0) + 1 : item.rewatchCount,
       notifyMe: false,
       clearNotificationDate: true,
-    ));
+    );
+    await save(updated.logProgressSince(item));
   }
 
   Future<void> markPending(ContentItem item) async {

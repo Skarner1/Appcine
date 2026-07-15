@@ -1,10 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -12,11 +8,12 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
 import '../../data/models/online_result.dart';
+import '../../data/services/poster_store.dart';
 import '../../providers/providers.dart';
 import '../../shared/widgets/app_buttons.dart';
-import '../../shared/widgets/custom_bottom_sheet.dart';
 import '../../shared/widgets/genre_chip.dart';
 import '../../shared/widgets/poster_image.dart';
+import '../../shared/widgets/poster_picker.dart';
 import '../../shared/widgets/rating_stars.dart';
 import '../online_search/online_search_screen.dart';
 
@@ -156,7 +153,9 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
               ),
               const SizedBox(height: 20),
               _sectionLabel(
-                _type.hasEpisodes ? 'Duración por episodio' : 'Duración',
+                _type.hasEpisodes
+                    ? 'Duración por ${_type.unitLabel}'
+                    : 'Duración',
               ),
               _buildDurationSlider(),
               if (_type.hasEpisodes) ...[
@@ -168,7 +167,10 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _sectionLabel('Episodios'),
+                          _sectionLabel(
+                            _type.unitsLabel[0].toUpperCase() +
+                                _type.unitsLabel.substring(1),
+                          ),
                           TextFormField(
                             controller: _episodesController,
                             keyboardType: TextInputType.number,
@@ -197,7 +199,11 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _sectionLabel('Último ep. visto'),
+                          _sectionLabel(
+                            _type.isRead
+                                ? 'Último tomo leído'
+                                : 'Último ep. visto',
+                          ),
                           TextFormField(
                             controller: _currentEpisodeController,
                             keyboardType: TextInputType.number,
@@ -253,7 +259,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                     IconButton(
                       tooltip: 'Quitar calificación',
                       onPressed: () => setState(() => _rating = null),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.close,
                         color: AppColors.textMuted,
                         size: 20,
@@ -427,7 +433,13 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
 
     return Center(
       child: GestureDetector(
-        onTap: _openPosterOptions,
+        onTap: () => showPosterOptions(
+          context,
+          hasPoster: _posterUrl != null,
+          currentUrl: _posterUrl,
+          onChanged: (value) => setState(() => _posterUrl = value),
+          onSearchOnline: _searchOnline,
+        ),
         child: Stack(
           children: [
             Container(
@@ -492,7 +504,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
           borderRadius: BorderRadius.circular(14),
           dropdownColor: AppColors.surfaceElevated,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          icon: const Icon(
+          icon: Icon(
             Icons.keyboard_arrow_down_rounded,
             color: AppColors.textSecondary,
           ),
@@ -623,7 +635,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
               if (value != null)
                 GestureDetector(
                   onTap: onClear,
-                  child: const Icon(
+                  child: Icon(
                     Icons.close,
                     size: 18,
                     color: AppColors.textMuted,
@@ -738,112 +750,33 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
     return result;
   }
 
-  void _openPosterOptions() {
-    showAppBottomSheet<void>(
-      context: context,
-      title: 'Imagen de portada',
-      builder: (context, controller) => ListView(
-        controller: controller,
-        padding: const EdgeInsets.all(20),
-        children: [
-          _posterOption(
-            icon: Icons.travel_explore_rounded,
-            label: 'Buscar en internet',
-            color: AppColors.primary,
-            onTap: () async {
-              Navigator.of(context).pop();
-              await _searchOnline();
-            },
-          ),
-          const SizedBox(height: 12),
-          _posterOption(
-            icon: Icons.photo_library_outlined,
-            label: 'Elegir de la galería',
-            onTap: () async {
-              Navigator.of(context).pop();
-              await _pickFromGallery();
-            },
-          ),
-          const SizedBox(height: 12),
-          _posterOption(
-            icon: Icons.link,
-            label: 'Usar URL de imagen',
-            onTap: () async {
-              Navigator.of(context).pop();
-              await _askPosterUrl();
-            },
-          ),
-          if (_posterUrl != null) ...[
-            const SizedBox(height: 12),
-            _posterOption(
-              icon: Icons.delete_outline,
-              label: 'Quitar portada',
-              color: AppColors.error,
-              onTap: () {
-                Navigator.of(context).pop();
-                setState(() => _posterUrl = null);
-              },
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _posterOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color color = AppColors.textPrimary,
-  }) {
-    return Material(
-      color: AppColors.surfaceElevated,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          height: 56,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _searchOnline() async {
     final result = await Navigator.of(context).push<OnlineResult>(
       MaterialPageRoute(
         builder: (_) => OnlineSearchScreen(pickerMode: true, lockedType: _type),
       ),
     );
-    if (result != null && mounted) _applyOnlineResult(result);
+    if (result != null && mounted) await _applyOnlineResult(result);
   }
 
   /// Trae datos del resultado elegido a la ficha en edición: el póster siempre;
   /// el resto de campos solo si están vacíos (no piso lo que ya escribiste).
-  void _applyOnlineResult(OnlineResult r) {
+  ///
+  /// El póster se baja al disco aquí mismo: es el único momento en que sabemos
+  /// que hay red, y así la ficha ya no depende de que la URL siga viva.
+  Future<void> _applyOnlineResult(OnlineResult r) async {
+    final remotePoster = r.posterUrl;
+    String? poster;
+    if (remotePoster != null && remotePoster.isNotEmpty) {
+      poster = await ref.read(posterStoreProvider).download(remotePoster) ??
+          remotePoster;
+      if (!mounted) return;
+    }
+
     var importedInfo = false;
     setState(() {
-      if (r.posterUrl != null && r.posterUrl!.isNotEmpty) {
-        _posterUrl = r.posterUrl;
+      if (poster != null) {
+        _posterUrl = poster;
       }
       if (_titleController.text.trim().isEmpty && r.title.isNotEmpty) {
         _titleController.text = r.title;
@@ -878,103 +811,6 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
       ),
     );
   }
-
-  Future<void> _pickFromGallery() async {
-    try {
-      final picked = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1200,
-        imageQuality: 88,
-      );
-      if (picked == null) return;
-
-      // Copia persistente en el directorio de la app.
-      final dir = await getApplicationDocumentsDirectory();
-      final postersDir = Directory('${dir.path}/posters');
-      if (!postersDir.existsSync()) {
-        postersDir.createSync(recursive: true);
-      }
-      final ext = picked.path.contains('.')
-          ? picked.path.substring(picked.path.lastIndexOf('.'))
-          : '.jpg';
-      final target = '${postersDir.path}/${const Uuid().v4()}$ext';
-      await File(picked.path).copy(target);
-
-      if (mounted) setState(() => _posterUrl = target);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo cargar la imagen.')),
-        );
-      }
-    }
-  }
-
-  Future<void> _askPosterUrl() async {
-    final controller = TextEditingController(
-      text: (_posterUrl?.startsWith('http') ?? false) ? _posterUrl : '',
-    );
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'URL del póster',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                maxLines: 1,
-                keyboardType: TextInputType.url,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                ),
-                decoration: const InputDecoration(
-                  hintText: 'https://…',
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: SecondaryButton(
-                      label: 'Cancelar',
-                      onTap: () => Navigator.of(context).pop(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: PrimaryButton(
-                      label: 'Usar',
-                      onTap: () =>
-                          Navigator.of(context).pop(controller.text.trim()),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (result != null && result.startsWith('http')) {
-      setState(() => _posterUrl = result);
-    }
-  }
-
   // --- Guardado ----------------------------------------------------------------
 
   Future<void> _save() async {

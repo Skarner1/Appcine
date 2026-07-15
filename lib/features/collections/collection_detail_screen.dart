@@ -34,7 +34,7 @@ class CollectionDetailScreen extends ConsumerWidget {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) Navigator.of(context).maybePop();
       });
-      return const Scaffold(backgroundColor: AppColors.background);
+      return Scaffold(backgroundColor: AppColors.background);
     }
 
     final current = collection.first;
@@ -224,9 +224,9 @@ class _AddItemsList extends ConsumerWidget {
         collection.isEmpty ? const <String>{} : collection.first.itemIds.toSet();
 
     if (items.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Text(
             'Tu catálogo está vacío. Agrega contenido primero.',
             textAlign: TextAlign.center,

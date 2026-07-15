@@ -2,8 +2,12 @@ import 'package:uuid/uuid.dart';
 
 import 'models/content_item.dart';
 
-/// Contenido de ejemplo que se carga solo en el primer arranque,
-/// para que la app no se sienta vacía. El usuario puede borrarlo.
+/// Títulos del contenido de ejemplo que se cargaba en versiones anteriores.
+/// Se usan para purgarlo una sola vez y dejar que el usuario agregue el suyo.
+Set<String> seedTitles() => buildSeedContent().map((e) => e.title).toSet();
+
+/// Contenido de ejemplo (ya NO se carga automáticamente). Se conserva solo
+/// como referencia de títulos para la limpieza única de datos antiguos.
 List<ContentItem> buildSeedContent() {
   const uuid = Uuid();
   final now = DateTime.now();

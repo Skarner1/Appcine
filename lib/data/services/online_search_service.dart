@@ -19,6 +19,8 @@ class OnlineSearchException implements Exception {
 ///  • Películas → Cinemeta (metadatos de IMDB, sin geo-restricción)
 ///  • Series    → TVMaze
 ///  • Anime     → AniList (GraphQL)
+///  • Manga     → AniList (el mismo GraphQL, con type: MANGA)
+///  • Libros    → Open Library
 ///
 /// Cada resultado se normaliza a [OnlineResult]. Las películas se devuelven
 /// "ligeras" (título, póster, año) y se completan con [enrich] al seleccionarlas.
@@ -37,7 +39,11 @@ class OnlineSearchService {
         case ContentType.series:
           return await _searchTvMaze(q);
         case ContentType.anime:
-          return await _searchAniList(q);
+          return await _searchAniList(q, ContentType.anime);
+        case ContentType.manga:
+          return await _searchAniList(q, ContentType.manga);
+        case ContentType.book:
+          return await _searchOpenLibrary(q);
         case ContentType.movie:
         case ContentType.documentary:
         case ContentType.shortFilm:
@@ -168,15 +174,19 @@ class OnlineSearchService {
     return out;
   }
 
-  // --- AniList (anime, GraphQL) ----------------------------------------------
+  // --- AniList (anime y manga, GraphQL) --------------------------------------
+  /// [t] es el MediaType de AniList (ANIME | MANGA). En manga, `episodes` y
+  /// `duration` vienen siempre nulos y lo que trae son `volumes` y `chapters`.
   static const String _aniListQuery = r'''
-query ($s: String) {
+query ($s: String, $t: MediaType) {
   Page(page: 1, perPage: 20) {
-    media(search: $s, type: ANIME, sort: SEARCH_MATCH) {
+    media(search: $s, type: $t, sort: SEARCH_MATCH) {
       title { romaji english }
       coverImage { large }
       episodes
       duration
+      volumes
+      chapters
       averageScore
       genres
       startDate { year month day }
@@ -185,7 +195,8 @@ query ($s: String) {
   }
 }''';
 
-  Future<List<OnlineResult>> _searchAniList(String q) async {
+  Future<List<OnlineResult>> _searchAniList(String q, ContentType type) async {
+    final mediaType = type == ContentType.manga ? 'MANGA' : 'ANIME';
     final res = await _client
         .post(
           Uri.https('graphql.anilist.co', ''),
@@ -195,7 +206,7 @@ query ($s: String) {
           },
           body: json.encode({
             'query': _aniListQuery,
-            'variables': {'s': q},
+            'variables': {'s': q, 't': mediaType},
           }),
         )
         .timeout(_timeout);
@@ -228,16 +239,70 @@ query ($s: String) {
         );
       }
 
+      // En manga las "partes" son tomos. Si la obra no los tiene contados
+      // (típico de las que siguen publicándose) se cae a los capítulos, que es
+      // lo que la gente sigue de verdad.
+      final units = type == ContentType.manga
+          ? ((raw['volumes'] as num?) ?? (raw['chapters'] as num?))?.toInt()
+          : (raw['episodes'] as num?)?.toInt();
+
       out.add(OnlineResult(
         title: name,
-        type: ContentType.anime,
+        type: type,
         posterUrl: cover,
         overview: _clip(_stripHtml(raw['description'] as String?)),
         genres: mapGenres(genres),
+        // AniList no da minutos de manga: los pone el usuario si le apetece.
         durationMinutes: (raw['duration'] as num?)?.toInt() ?? 0,
-        episodes: (raw['episodes'] as num?)?.toInt(),
+        episodes: units,
         releaseDate: date,
         rating: score != null ? score / 10.0 : null,
+      ));
+    }
+    return out;
+  }
+
+  // --- Open Library (libros) -------------------------------------------------
+  /// Busca en Open Library, que es libre, sin clave y sin límite práctico.
+  ///
+  /// Se piden solo los campos que se usan (`fields`): la respuesta por defecto
+  /// trae decenas de kilobytes por libro que no pintan nada aquí.
+  Future<List<OnlineResult>> _searchOpenLibrary(String q) async {
+    final uri = Uri.https('openlibrary.org', '/search.json', {
+      'q': q,
+      'limit': '20',
+      'fields': 'title,author_name,first_publish_year,cover_i,subject,'
+          'number_of_pages_median,ratings_average',
+    });
+    final data = await _getJson(uri);
+    final docs = (data['docs'] as List?) ?? const [];
+
+    final out = <OnlineResult>[];
+    for (final raw in docs) {
+      if (raw is! Map) continue;
+      final title = raw['title'] as String?;
+      if (title == null || title.isEmpty) continue;
+
+      final coverId = raw['cover_i'] as num?;
+      final authors = (raw['author_name'] as List?)?.cast<String>();
+      final subjects = (raw['subject'] as List?)?.cast<String>() ?? const [];
+      final year = (raw['first_publish_year'] as num?)?.toInt();
+      final rating = (raw['ratings_average'] as num?)?.toDouble();
+
+      out.add(OnlineResult(
+        title: title,
+        type: ContentType.book,
+        posterUrl: coverId == null
+            ? null
+            : 'https://covers.openlibrary.org/b/id/$coverId-L.jpg',
+        // Open Library no da sinopsis en la búsqueda; el autor es lo que de
+        // verdad distingue dos libros con el mismo título.
+        overview: (authors != null && authors.isNotEmpty)
+            ? 'De ${authors.take(3).join(', ')}'
+            : null,
+        genres: mapGenres(subjects),
+        releaseDate: year == null ? null : DateTime(year),
+        rating: rating,
       ));
     }
     return out;

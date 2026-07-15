@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 
 import 'app.dart';
 import 'core/services/notification_service.dart';
+import 'core/theme/app_colors.dart';
+import 'data/migrations.dart';
 import 'data/models/content_adapters.dart';
 import 'data/models/content_item.dart';
 import 'data/repositories/content_repository.dart';
@@ -17,16 +19,45 @@ Future<void> main() async {
 
   // Almacenamiento local offline-first.
   await Hive.initFlutter();
+  Hive.registerAdapter(WatchEventAdapter());
   Hive.registerAdapter(ContentItemAdapter());
   final contentBox = await Hive.openBox<ContentItem>('content');
   final settingsBox = await Hive.openBox<dynamic>('settings');
 
-  // Contenido de ejemplo solo en el primer arranque.
-  if (settingsBox.get('seeded') != true) {
-    final seed = buildSeedContent();
-    await contentBox.putAll({for (final item in seed) item.id: item});
-    await settingsBox.put('seeded', true);
+  // La app ya no carga contenido de ejemplo: el usuario agrega el suyo.
+  // Limpieza única: elimina el contenido de ejemplo sembrado por versiones
+  // anteriores (identificado por su título), respetando lo que agregó el usuario.
+  if (settingsBox.get('example_cleared') != true) {
+    if (settingsBox.get('seeded') == true) {
+      final titles = seedTitles();
+      final idsToRemove = contentBox.values
+          .where((item) => titles.contains(item.title))
+          .map((item) => item.id)
+          .toList();
+      await contentBox.deleteAll(idsToRemove);
+    }
+    await settingsBox.put('example_cleared', true);
   }
+
+  // Backfill único del diario de visionados para el contenido guardado antes de
+  // que existiera (ver migrateWatchLog).
+  if (settingsBox.get(migratedWatchLogKey) != true) {
+    final migrated = migrateWatchLog(contentBox.values);
+    if (migrated.isNotEmpty) {
+      await contentBox.putAll({for (final item in migrated) item.id: item});
+    }
+    await settingsBox.put(migratedWatchLogKey, true);
+  }
+
+  // Paleta inicial según el tema guardado (evita parpadeo en el primer frame).
+  final storedThemeMode = settingsBox.get('theme_mode') as String?;
+  final startsDark = switch (storedThemeMode) {
+    'light' => false,
+    'dark' => true,
+    _ => WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+        Brightness.dark,
+  };
+  AppColors.setBrightness(startsDark ? Brightness.dark : Brightness.light);
 
   // Fechas en español.
   await initializeDateFormatting('es');

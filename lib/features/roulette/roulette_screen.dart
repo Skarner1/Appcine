@@ -10,6 +10,7 @@ import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
 import '../../providers/providers.dart';
 import '../../shared/widgets/app_buttons.dart';
+import '../../shared/widgets/content_type_carousel.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/poster_image.dart';
 import '../detail/content_detail_screen.dart';
@@ -211,76 +212,76 @@ class _Filters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _label('Tipo'),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _pill(
-                  label: 'Todo',
-                  selected: filter.type == null,
-                  onTap: () => onChanged(filter.copyWith(clearType: true)),
-                ),
-                for (final type in ContentType.values)
-                  _pill(
-                    label: type.label,
-                    selected: filter.type == type,
-                    onTap: () => onChanged(filter.copyWith(type: type)),
-                  ),
-              ],
-            ),
+    // Los carruseles llevan su propio padding por dentro para poder arrastrarse
+    // de borde a borde; por eso las etiquetas se lo ponen aparte y no hay un
+    // Padding envolviendo todo.
+    const side = EdgeInsets.symmetric(horizontal: 16);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Padding(padding: side, child: _label('Tipo')),
+        const SizedBox(height: 8),
+        ContentTypeCarousel(
+          types: ContentType.values,
+          selected: filter.type,
+          onSelect: (type) => onChanged(
+            type == null
+                ? filter.copyWith(clearType: true)
+                : filter.copyWith(type: type),
           ),
-          const SizedBox(height: 12),
-          _label('Duración máx.'),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final opt in durationOptions)
-                  _pill(
-                    label: opt == null ? 'Cualquiera' : '≤ ${formatDuration(opt)}',
-                    selected: filter.maxMinutes == opt,
-                    onTap: () => onChanged(
-                      opt == null
-                          ? filter.copyWith(clearMaxMinutes: true)
-                          : filter.copyWith(maxMinutes: opt),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (availableGenres.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _label('Género'),
-            const SizedBox(height: 8),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _pill(
-                    label: 'Todos',
-                    selected: filter.genre == null,
-                    onTap: () => onChanged(filter.copyWith(clearGenre: true)),
-                  ),
-                  for (final genre in availableGenres)
-                    _pill(
-                      label: genre,
-                      selected: filter.genre == genre,
-                      onTap: () => onChanged(filter.copyWith(genre: genre)),
-                    ),
-                ],
+          includeAll: true,
+          enabled: enabled,
+          padding: side,
+        ),
+        const SizedBox(height: 12),
+        Padding(padding: side, child: _label('Duración máx.')),
+        const SizedBox(height: 8),
+        ChipCarousel(
+          padding: side,
+          options: [
+            for (final opt in durationOptions)
+              ChipCarouselOption(
+                label: opt == null ? 'Cualquiera' : '≤ ${formatDuration(opt)}',
+                selected: filter.maxMinutes == opt,
+                onTap: enabled
+                    ? () => onChanged(
+                          opt == null
+                              ? filter.copyWith(clearMaxMinutes: true)
+                              : filter.copyWith(maxMinutes: opt),
+                        )
+                    : null,
               ),
-            ),
           ],
+        ),
+        if (availableGenres.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Padding(padding: side, child: _label('Género')),
+          const SizedBox(height: 8),
+          ChipCarousel(
+            padding: side,
+            options: [
+              ChipCarouselOption(
+                label: 'Todos',
+                selected: filter.genre == null,
+                onTap: enabled
+                    ? () => onChanged(filter.copyWith(clearGenre: true))
+                    : null,
+              ),
+              for (final genre in availableGenres)
+                ChipCarouselOption(
+                  label: genre,
+                  selected: filter.genre == genre,
+                  onTap: enabled
+                      ? () => onChanged(filter.copyWith(genre: genre))
+                      : null,
+                ),
+            ],
+          ),
         ],
-      ),
+        const SizedBox(height: 4),
+      ],
     );
   }
 
@@ -294,40 +295,6 @@ class _Filters extends StatelessWidget {
         ),
       );
 
-  Widget _pill({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Material(
-        color: selected ? AppColors.primary : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: selected ? AppColors.primary : AppColors.border,
-              ),
-            ),
-            child: Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Zona central: póster grande que parpadea al girar y revela el elegido.

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -7,11 +8,16 @@ import '../../core/services/notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
+import '../../data/services/auto_backup_service.dart';
 import '../../data/services/backup_service.dart';
 import '../../providers/providers.dart';
 import '../../shared/widgets/app_buttons.dart';
 import '../../shared/widgets/app_dialog.dart';
+import '../reminders/stalled_reminders.dart';
 import '../stats/watch_stats_screen.dart';
+import 'auto_backups_screen.dart';
+import 'catalog_qr_screen.dart';
+import 'catalog_share.dart';
 import 'notifications_screen.dart';
 
 /// Tab 4 — Perfil: estadísticas, notificaciones programadas y configuración.
@@ -90,7 +96,7 @@ class ProfileScreen extends ConsumerWidget {
               IconButton(
                 tooltip: 'Editar nombre',
                 onPressed: () => _editName(context, ref, name),
-                icon: const Icon(
+                icon: Icon(
                   Icons.edit_outlined,
                   color: AppColors.textSecondary,
                 ),
@@ -188,7 +194,7 @@ class ProfileScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.notifications_off_outlined,
                           color: AppColors.textMuted,
                           size: 22,
@@ -287,14 +293,29 @@ class ProfileScreen extends ConsumerWidget {
             icon: Icons.restore_outlined,
             title: 'Restaurar copia',
             subtitle: 'Importa un archivo .json de backup',
+            onTap: () => _restore(context, ref),
+          ),
+          _SettingsTile(
+            icon: Icons.ios_share_outlined,
+            title: 'Compartir catálogo',
+            subtitle: 'Envía tu colección a otras personas (.json o texto)',
+            onTap: () => _share(context, ref),
+          ),
+          _SettingsTile(
+            icon: Icons.download_outlined,
+            title: 'Importar catálogo',
+            subtitle: 'Añade un catálogo que te compartieron',
             onTap: () => _import(context, ref),
           ),
           _SettingsTile(
-            icon: Icons.dark_mode_outlined,
-            title: 'Tema',
-            subtitle: 'Oscuro cinematográfico (único, como debe ser 🎬)',
-            onTap: null,
+            icon: Icons.qr_code_scanner,
+            title: 'Escanear QR',
+            subtitle: 'Lee el catálogo de otro móvil, sin internet',
+            onTap: () => _scanQr(context, ref),
           ),
+          const _ThemeSelector(),
+          const _StalledReminderSelector(),
+          const _AutoBackupSelector(),
           _SettingsTile(
             icon: Icons.delete_sweep_outlined,
             title: 'Vaciar catálogo',
@@ -404,7 +425,7 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _import(BuildContext context, WidgetRef ref) async {
+  Future<void> _restore(BuildContext context, WidgetRef ref) async {
     final BackupImport? backup;
     try {
       backup = await ref.read(backupServiceProvider).pickAndDecode();
@@ -454,6 +475,118 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _share(BuildContext context, WidgetRef ref) async {
+    final items = ref.read(contentRepositoryProvider).getAll();
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu catálogo está vacío: agrega títulos primero.'),
+        ),
+      );
+      return;
+    }
+    final name = ref.read(profileNameProvider);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _ShareOptionsSheet(
+        count: items.length,
+        onText: () {
+          Navigator.of(sheetContext).pop();
+          shareCatalogAsText(name, items);
+        },
+        onImage: () {
+          Navigator.of(sheetContext).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => CatalogImagePreviewScreen(
+                userName: name,
+                items: items,
+              ),
+            ),
+          );
+        },
+        onQr: () {
+          Navigator.of(sheetContext).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CatalogQrScreen()),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _scanQr(BuildContext context, WidgetRef ref) async {
+    final imported = await Navigator.of(context).push<int>(
+      MaterialPageRoute(builder: (_) => const ScanCatalogQrScreen()),
+    );
+    if (imported == null || !context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$imported títulos importados')),
+    );
+  }
+
+  Future<void> _import(BuildContext context, WidgetRef ref) async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim();
+    if (text == null || text.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Copia primero el catálogo que te compartieron y vuelve a intentarlo.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    List<ContentItem> items;
+    try {
+      items = parseSharedCatalog(text);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El portapapeles no contiene un catálogo válido.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (items.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('El catálogo compartido está vacío.')),
+        );
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: 'Importar ${items.length} títulos',
+      message:
+          'Se agregarán a tu catálogo actual (los que tengan el mismo id se sobrescriben). ¿Continuar?',
+      confirmLabel: 'Importar',
+      icon: Icons.download_outlined,
+      accent: AppColors.secondary,
+    );
+    if (!confirmed) return;
+
+    await ref.read(contentRepositoryProvider).saveAll(items);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${items.length} títulos importados')),
+      );
+    }
+  }
+
   Future<void> _clearAll(BuildContext context, WidgetRef ref) async {
     final confirmed = await showAppConfirmDialog(
       context: context,
@@ -476,6 +609,153 @@ class ProfileScreen extends ConsumerWidget {
         const SnackBar(content: Text('Catálogo vaciado')),
       );
     }
+  }
+}
+
+/// Menú compacto para elegir cómo compartir el catálogo: texto o imagen.
+class _ShareOptionsSheet extends StatelessWidget {
+  final int count;
+  final VoidCallback onText;
+  final VoidCallback onImage;
+  final VoidCallback onQr;
+
+  const _ShareOptionsSheet({
+    required this.count,
+    required this.onText,
+    required this.onImage,
+    required this.onQr,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Compartir $count títulos',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            const Divider(height: 24),
+            _ShareOptionTile(
+              icon: Icons.notes_outlined,
+              color: AppColors.secondary,
+              title: 'Como texto (bloc de notas)',
+              subtitle: 'Lista legible para cualquier chat',
+              onTap: onText,
+            ),
+            _ShareOptionTile(
+              icon: Icons.image_outlined,
+              color: AppColors.tertiary,
+              title: 'Como imagen',
+              subtitle: 'Una tarjeta .png con tus pósters',
+              onTap: onImage,
+            ),
+            _ShareOptionTile(
+              icon: Icons.qr_code_2,
+              color: AppColors.primary,
+              title: 'Como código QR',
+              subtitle: 'Que lo escaneen del móvil, sin internet',
+              onTap: onQr,
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShareOptionTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ShareOptionTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -519,7 +799,7 @@ class _StatCard extends StatelessWidget {
               ),
               const Spacer(),
               if (onTap != null)
-                const Icon(
+                Icon(
                   Icons.arrow_outward_rounded,
                   size: 18,
                   color: AppColors.textMuted,
@@ -779,6 +1059,377 @@ class _GenresBarChart extends StatelessWidget {
   }
 }
 
+/// Selector de tema: Sistema / Claro / Oscuro. Persiste vía [themeModeProvider].
+class _ThemeSelector extends ConsumerWidget {
+  const _ThemeSelector();
+
+  static const List<({ThemeMode mode, IconData icon, String label})> _options = [
+    (
+      mode: ThemeMode.system,
+      icon: Icons.brightness_auto_outlined,
+      label: 'Sistema',
+    ),
+    (mode: ThemeMode.light, icon: Icons.light_mode_outlined, label: 'Claro'),
+    (mode: ThemeMode.dark, icon: Icons.dark_mode_outlined, label: 'Oscuro'),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.dark_mode_outlined,
+                  size: 22,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tema',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Claro, oscuro o según el sistema',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                for (var i = 0; i < _options.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 10),
+                  Expanded(
+                    child: _ThemeOptionButton(
+                      icon: _options[i].icon,
+                      label: _options[i].label,
+                      selected: mode == _options[i].mode,
+                      onTap: () => ref
+                          .read(themeModeProvider.notifier)
+                          .setMode(_options[i].mode),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Ajuste del aviso de títulos a medias: activarlo y decidir cuánta paciencia
+/// tiene la app antes de decir algo.
+class _StalledReminderSelector extends ConsumerWidget {
+  const _StalledReminderSelector();
+
+  static String _label(int days) => switch (days) {
+        7 => '1 semana',
+        14 => '2 semanas',
+        _ => '1 mes',
+      };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(stalledReminderEnabledProvider);
+    final days = ref.watch(stalledReminderDaysProvider);
+    final stalled = ref.watch(stalledItemsProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.bookmark_added_outlined,
+                  size: 22,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Avisarme de lo que dejo a medias',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        enabled && stalled.isNotEmpty
+                            ? '${stalled.length} ${stalled.length == 1 ? 'título parado' : 'títulos parados'} ahora mismo'
+                            : 'Un recordatorio si no retomas algo que empezaste',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: enabled,
+                  activeThumbColor: AppColors.primary,
+                  onChanged: (value) async {
+                    await ref
+                        .read(stalledReminderEnabledProvider.notifier)
+                        .setEnabled(value);
+                    if (value) await NotificationService.instance.requestPermissions();
+                    await syncStalledReminder(ref);
+                  },
+                ),
+              ],
+            ),
+            if (enabled) ...[
+              const SizedBox(height: 14),
+              Text(
+                'Tras cuánto tiempo sin tocarlo',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  for (var i = 0;
+                      i < StalledReminderDaysNotifier.options.length;
+                      i++) ...[
+                    if (i > 0) const SizedBox(width: 10),
+                    Expanded(
+                      child: _ThemeOptionButton(
+                        icon: Icons.schedule,
+                        label: _label(StalledReminderDaysNotifier.options[i]),
+                        selected: days == StalledReminderDaysNotifier.options[i],
+                        onTap: () async {
+                          await ref
+                              .read(stalledReminderDaysProvider.notifier)
+                              .setDays(StalledReminderDaysNotifier.options[i]);
+                          await syncStalledReminder(ref);
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Ajuste de las copias automáticas: activarlas, cada cuánto, y entrar a verlas.
+class _AutoBackupSelector extends ConsumerWidget {
+  const _AutoBackupSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(autoBackupEnabledProvider);
+    final frequency = ref.watch(autoBackupFrequencyProvider);
+    final lastRun = ref.watch(autoBackupLastRunProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.save_outlined,
+                  size: 22,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Copias automáticas',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        enabled && lastRun != null
+                            ? 'Última: ${formatRelative(lastRun)}'
+                            : 'Guarda ${AutoBackupService.keepCount} copias dentro del móvil',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: enabled,
+                  activeThumbColor: AppColors.primary,
+                  onChanged: (value) => ref
+                      .read(autoBackupEnabledProvider.notifier)
+                      .setEnabled(value),
+                ),
+              ],
+            ),
+            if (enabled) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  for (var i = 0; i < BackupFrequency.values.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 10),
+                    Expanded(
+                      child: _ThemeOptionButton(
+                        icon: Icons.schedule,
+                        label: BackupFrequency.values[i].label,
+                        selected: frequency == BackupFrequency.values[i],
+                        onTap: () => ref
+                            .read(autoBackupFrequencyProvider.notifier)
+                            .setFrequency(BackupFrequency.values[i]),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AutoBackupsScreen(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text('Ver copias y restaurar'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.secondary,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeOptionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ThemeOptionButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = selected ? AppColors.primary : AppColors.textSecondary;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: accent),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -848,7 +1499,7 @@ class _SettingsTile extends StatelessWidget {
                   ),
                 ),
                 if (onTap != null)
-                  const Icon(
+                  Icon(
                     Icons.chevron_right,
                     size: 20,
                     color: AppColors.textMuted,

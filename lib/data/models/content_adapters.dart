@@ -1,6 +1,39 @@
 import 'package:hive/hive.dart';
 
 import 'content_item.dart';
+import 'watch_event.dart';
+
+/// TypeAdapter manual de [WatchEvent] (typeId 2), sin build_runner.
+class WatchEventAdapter extends TypeAdapter<WatchEvent> {
+  @override
+  final int typeId = 2;
+
+  @override
+  WatchEvent read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+
+    return WatchEvent(
+      date: fields[0] as DateTime? ?? DateTime.now(),
+      minutes: fields[1] as int? ?? 0,
+      episodes: fields[2] as int?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, WatchEvent obj) {
+    writer
+      ..writeByte(3)
+      ..writeByte(0)
+      ..write(obj.date)
+      ..writeByte(1)
+      ..write(obj.minutes)
+      ..writeByte(2)
+      ..write(obj.episodes);
+  }
+}
 
 /// TypeAdapter manual de [ContentItem] (typeId 1), sin build_runner.
 /// Los enums se guardan como índice; las fechas como DateTime nativo de Hive.
@@ -45,13 +78,16 @@ class ContentItemAdapter extends TypeAdapter<ContentItem> {
       notificationDate: fields[18] as DateTime?,
       rewatchCount: fields[19] as int?,
       isFavorite: fields[20] as bool? ?? false,
+      // Campo nuevo: los registros escritos antes del diario no lo traen y se
+      // quedan con la lista vacía. El backfill lo hace migrateWatchLog().
+      watchLog: (fields[21] as List?)?.cast<WatchEvent>() ?? const [],
     );
   }
 
   @override
   void write(BinaryWriter writer, ContentItem obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(22)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -93,6 +129,8 @@ class ContentItemAdapter extends TypeAdapter<ContentItem> {
       ..writeByte(19)
       ..write(obj.rewatchCount)
       ..writeByte(20)
-      ..write(obj.isFavorite);
+      ..write(obj.isFavorite)
+      ..writeByte(21)
+      ..write(obj.watchLog);
   }
 }

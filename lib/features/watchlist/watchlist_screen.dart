@@ -7,6 +7,7 @@ import '../../data/models/content_item.dart';
 import '../../providers/providers.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/horizontal_content_card.dart';
+import '../../shared/widgets/poster_image.dart';
 import '../../shared/widgets/shimmer_card.dart';
 import '../../shared/widgets/staggered_item.dart';
 import '../content_form/content_form_screen.dart';
@@ -66,8 +67,36 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
             child: _SegmentedControl(
               selected: _tab,
               onChanged: (tab) => setState(() => _tab = tab),
+              onItemDropped: _moveItem,
             ),
           ),
+          if (items.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.drag_indicator,
+                    size: 15,
+                    color: AppColors.textMuted,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Mantén pulsada una tarjeta y arrástrala a otra lista',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Expanded(
             child: asyncItems.when(
@@ -121,13 +150,23 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
                         final item = items[index];
                         return StaggeredItem(
                           index: index,
-                          child: HorizontalContentCard(
-                            item: item,
-                            trailing: _QuickStatusButton(item: item, tab: _tab),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    ContentDetailScreen(contentId: item.id),
+                          child: LongPressDraggable<ContentItem>(
+                            data: item,
+                            dragAnchorStrategy: pointerDragAnchorStrategy,
+                            feedback: _DragFeedback(item: item),
+                            childWhenDragging: Opacity(
+                              opacity: 0.35,
+                              child: HorizontalContentCard(item: item),
+                            ),
+                            child: HorizontalContentCard(
+                              item: item,
+                              trailing:
+                                  _QuickStatusButton(item: item, tab: _tab),
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ContentDetailScreen(contentId: item.id),
+                                ),
                               ),
                             ),
                           ),
@@ -138,6 +177,24 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Mueve un contenido a la lista destino soltándolo sobre su pestaña.
+  Future<void> _moveItem(WatchlistTab tab, ContentItem item) async {
+    final actions = ref.read(contentActionsProvider);
+    switch (tab) {
+      case WatchlistTab.pending:
+        await actions.markPending(item);
+      case WatchlistTab.rewatch:
+        await actions.save(item.copyWith(status: WatchStatus.rewatchPending));
+      case WatchlistTab.seen:
+        await actions.markCompleted(item);
+    }
+    if (!mounted) return;
+    setState(() => _tab = tab);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('"${item.title}" movida a ${tab.label}')),
     );
   }
 }
@@ -177,12 +234,18 @@ class _RouletteButton extends StatelessWidget {
   }
 }
 
-/// Segmented control custom de 3 opciones con indicador animado.
+/// Segmented control de 3 opciones que además actúa como zona de destino:
+/// al soltar una tarjeta sobre una pestaña se mueve el contenido a esa lista.
 class _SegmentedControl extends StatelessWidget {
   final WatchlistTab selected;
   final ValueChanged<WatchlistTab> onChanged;
+  final void Function(WatchlistTab tab, ContentItem item) onItemDropped;
 
-  const _SegmentedControl({required this.selected, required this.onChanged});
+  const _SegmentedControl({
+    required this.selected,
+    required this.onChanged,
+    required this.onItemDropped,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -195,47 +258,122 @@ class _SegmentedControl extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final tab in WatchlistTab.values)
             Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(tab),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOutCubic,
-                  decoration: BoxDecoration(
-                    color: selected == tab
-                        ? AppColors.primary
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: selected == tab
-                        ? [
-                            BoxShadow(
-                              color:
-                                  AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    tab.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: selected == tab
-                          ? Colors.white
-                          : AppColors.textSecondary,
+              child: DragTarget<ContentItem>(
+                onWillAcceptWithDetails: (_) => true,
+                onAcceptWithDetails: (details) =>
+                    onItemDropped(tab, details.data),
+                builder: (context, candidate, rejected) {
+                  final isTarget = candidate.isNotEmpty;
+                  final isSelected = selected == tab;
+                  final accent =
+                      isTarget ? AppColors.secondary : AppColors.primary;
+                  return GestureDetector(
+                    onTap: () => onChanged(tab),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      margin: const EdgeInsets.symmetric(horizontal: 1),
+                      decoration: BoxDecoration(
+                        color: (isSelected || isTarget)
+                            ? accent
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                        border: isTarget
+                            ? Border.all(color: Colors.white, width: 1.5)
+                            : null,
+                        boxShadow: (isSelected || isTarget)
+                            ? [
+                                BoxShadow(
+                                  color: accent.withValues(alpha: 0.35),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        tab.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: (isSelected || isTarget)
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Vista flotante que sigue al dedo mientras se arrastra una tarjeta.
+class _DragFeedback extends StatelessWidget {
+  final ContentItem item;
+
+  const _DragFeedback({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Opacity(
+        opacity: 0.95,
+        child: Container(
+          width: 230,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.primary, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 40,
+                  height: 60,
+                  child: PosterImage(item: item),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  item.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

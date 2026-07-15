@@ -181,13 +181,19 @@ class NotificationService {
       }
     } catch (_) {}
 
+    // Un libro no se ve ni pide palomitas.
+    final reading = item.type.isRead;
+    final flourish = reading ? '' : ' ¡Prepara las palomitas!';
+
     try {
       await _plugin.zonedSchedule(
         id: id,
-        title: '🎬 Hoy toca ver: ${item.title}',
+        title: reading
+            ? '📖 Hoy toca leer: ${item.title}'
+            : '🎬 Hoy toca ver: ${item.title}',
         body: item.type.hasEpisodes && item.currentEpisode != null
-            ? 'Continúa desde el episodio ${(item.currentEpisode ?? 0) + 1}. ¡Prepara las palomitas!'
-            : 'Lo programaste para este momento. ¡Prepara las palomitas!',
+            ? 'Continúa desde el ${item.type.unitLabel} ${(item.currentEpisode ?? 0) + 1}.$flourish'
+            : 'Lo programaste para este momento.$flourish',
         scheduledDate: scheduled,
         notificationDetails: _details(),
         androidScheduleMode: scheduleMode,
@@ -197,6 +203,46 @@ class NotificationService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Id fijo del aviso de "lo dejaste a medias". Se deriva de una cadena que no
+  /// es un UUID, así que nunca choca con el recordatorio propio de una ficha.
+  static int get stalledReminderId => notificationId('__stalled_digest__');
+
+  /// Programa el aviso de títulos a medias para [when], con [message] ya
+  /// redactado. Al tocarlo se abre la ficha del más abandonado ([contentId]).
+  ///
+  /// Es un aviso único aunque haya varios títulos parados: una notificación por
+  /// cada uno sería una encerrona, no un recordatorio.
+  Future<bool> scheduleStalledReminder({
+    required String message,
+    required String contentId,
+    required DateTime when,
+  }) async {
+    if (!_initialized) return false;
+    if (!when.isAfter(DateTime.now())) return false;
+
+    try {
+      await _plugin.zonedSchedule(
+        id: stalledReminderId,
+        title: '🍿 Lo dejaste a medias',
+        body: message,
+        scheduledDate: tz.TZDateTime.from(when, tz.local),
+        notificationDetails: _details(),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: contentId,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> cancelStalledReminder() async {
+    if (!_initialized) return;
+    try {
+      await _plugin.cancel(id: stalledReminderId);
+    } catch (_) {}
   }
 
   Future<void> cancelForContent(String contentId) async {
