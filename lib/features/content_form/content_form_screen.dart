@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
@@ -103,7 +104,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Editar contenido' : 'Agregar contenido'),
+        title: Text(tr(_isEditing ? 'form.title.edit' : 'form.title.add')),
       ),
       body: SafeArea(
         child: Form(
@@ -113,7 +114,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
             children: [
               _buildPosterHeader(),
               const SizedBox(height: 20),
-              _sectionLabel('Título'),
+              _sectionLabel(tr('form.field.title')),
               TextFormField(
                 controller: _titleController,
                 autofocus: !_isEditing,
@@ -123,25 +124,25 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                   fontSize: 14,
                   color: AppColors.textPrimary,
                 ),
-                decoration: const InputDecoration(
-                  hintText: 'Ej. Interstellar',
+                decoration: InputDecoration(
+                  hintText: tr('form.hint.example', {'x': 'Interstellar'}),
                 ),
                 validator: (value) => (value == null || value.trim().isEmpty)
-                    ? 'El título es obligatorio'
+                    ? tr('form.validator.titleRequired')
                     : null,
               ),
               const SizedBox(height: 20),
-              _sectionLabel('Tipo'),
+              _sectionLabel(tr('form.field.type')),
               _buildTypeSelector(),
               const SizedBox(height: 20),
-              _sectionLabel('Géneros'),
+              _sectionLabel(tr('form.field.genres')),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
                   for (final genre in kGenres)
                     GenreChip(
-                      label: genre,
+                      label: localizedGenre(genre),
                       selected: _genres.contains(genre),
                       onTap: () => setState(() {
                         _genres.contains(genre)
@@ -154,8 +155,8 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
               const SizedBox(height: 20),
               _sectionLabel(
                 _type.hasEpisodes
-                    ? 'Duración por ${_type.unitLabel}'
-                    : 'Duración',
+                    ? tr('form.field.durationPer', {'unit': _type.unitLabel})
+                    : tr('form.field.duration'),
               ),
               _buildDurationSlider(),
               if (_type.hasEpisodes) ...[
@@ -179,15 +180,16 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                               fontSize: 14,
                               color: AppColors.textPrimary,
                             ),
-                            decoration:
-                                const InputDecoration(hintText: 'Ej. 10'),
+                            decoration: InputDecoration(
+                              hintText: tr('form.hint.example', {'x': '10'}),
+                            ),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return null;
                               }
                               final n = int.tryParse(value.trim());
                               return (n == null || n <= 0)
-                                  ? 'Número inválido'
+                                  ? tr('form.validator.invalidNumber')
                                   : null;
                             },
                           ),
@@ -201,8 +203,8 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                         children: [
                           _sectionLabel(
                             _type.isRead
-                                ? 'Último tomo leído'
-                                : 'Último ep. visto',
+                                ? tr('form.field.lastVolumeRead')
+                                : tr('form.field.lastEpisodeSeen'),
                           ),
                           TextFormField(
                             controller: _currentEpisodeController,
@@ -212,15 +214,16 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                               fontSize: 14,
                               color: AppColors.textPrimary,
                             ),
-                            decoration:
-                                const InputDecoration(hintText: 'Ej. 3'),
+                            decoration: InputDecoration(
+                              hintText: tr('form.hint.example', {'x': '3'}),
+                            ),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return null;
                               }
                               final n = int.tryParse(value.trim());
                               return (n == null || n < 0)
-                                  ? 'Número inválido'
+                                  ? tr('form.validator.invalidNumber')
                                   : null;
                             },
                           ),
@@ -231,7 +234,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                 ),
               ],
               const SizedBox(height: 20),
-              _sectionLabel('Estado'),
+              _sectionLabel(tr('form.field.status')),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -246,7 +249,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              _sectionLabel('Calificación'),
+              _sectionLabel(tr('form.field.rating')),
               Row(
                 children: [
                   RatingStars(
@@ -257,7 +260,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                   const Spacer(),
                   if (_rating != null)
                     IconButton(
-                      tooltip: 'Quitar calificación',
+                      tooltip: tr('form.tooltip.clearRating'),
                       onPressed: () => setState(() => _rating = null),
                       icon: Icon(
                         Icons.close,
@@ -268,16 +271,16 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              _sectionLabel('Fecha planificada / de visionado'),
+              _sectionLabel(tr('form.field.watchDate')),
               _buildDateTile(
                 value: _watchDate,
-                hint: 'Elegir fecha',
+                hint: tr('form.hint.pickDate'),
                 icon: Icons.event_outlined,
                 onPick: _pickWatchDate,
                 onClear: () => setState(() => _watchDate = null),
               ),
               const SizedBox(height: 20),
-              _sectionLabel('Nota personal'),
+              _sectionLabel(tr('form.field.note')),
               TextFormField(
                 controller: _noteController,
                 maxLines: 3,
@@ -286,14 +289,14 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                   fontSize: 14,
                   color: AppColors.textPrimary,
                 ),
-                decoration: const InputDecoration(
-                  hintText: '¿Por qué la quieres ver? ¿Qué te pareció?',
+                decoration: InputDecoration(
+                  hintText: tr('form.hint.note'),
                 ),
               ),
               const SizedBox(height: 20),
               _buildToggleTile(
-                title: '¿Es una recomendación?',
-                subtitle: 'Guarda quién te la recomendó y su nota',
+                title: tr('form.toggle.isRec.title'),
+                subtitle: tr('form.toggle.isRec.subtitle'),
                 value: _isRecommendation,
                 icon: Icons.people_outline,
                 onChanged: (value) =>
@@ -309,14 +312,14 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                     fontSize: 14,
                     color: AppColors.textPrimary,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Recomendado por',
-                    hintText: 'Nombre del amigo',
+                  decoration: InputDecoration(
+                    labelText: tr('form.field.recommendedBy'),
+                    hintText: tr('form.hint.friendName'),
                   ),
                   validator: (value) {
                     if (!_isRecommendation) return null;
                     return (value == null || value.trim().isEmpty)
-                        ? 'Indica quién la recomendó'
+                        ? tr('form.validator.recommendedByRequired')
                         : null;
                   },
                 ),
@@ -329,18 +332,18 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                     fontSize: 14,
                     color: AppColors.textPrimary,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Nota del amigo',
-                    hintText: '"Tienes que verla, es una joya…"',
+                  decoration: InputDecoration(
+                    labelText: tr('form.field.friendNote'),
+                    hintText: tr('form.hint.friendNote'),
                   ),
                 ),
               ],
               const SizedBox(height: 14),
               _buildToggleTile(
-                title: 'Recordatorio de visionado',
+                title: tr('form.toggle.reminder.title'),
                 subtitle: _notifyMe && _notificationDate != null
                     ? formatDateTime(_notificationDate!)
-                    : 'Recibe una notificación para no olvidarla',
+                    : tr('form.toggle.reminder.subtitle'),
                 value: _notifyMe,
                 icon: Icons.notifications_active_outlined,
                 onChanged: (value) async {
@@ -364,7 +367,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                 const SizedBox(height: 14),
                 _buildDateTile(
                   value: _notificationDate,
-                  hint: 'Elegir fecha y hora',
+                  hint: tr('form.hint.pickDateTime'),
                   icon: Icons.alarm,
                   withTime: true,
                   onPick: () async {
@@ -385,14 +388,14 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
                 children: [
                   Expanded(
                     child: SecondaryButton(
-                      label: 'Cancelar',
+                      label: tr('common.cancel'),
                       onTap: () => Navigator.of(context).pop(),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: PrimaryButton(
-                      label: _isEditing ? 'Guardar cambios' : 'Guardar',
+                      label: tr(_isEditing ? 'form.saveChanges' : 'common.save'),
                       icon: Icons.check,
                       onTap: _save,
                     ),
@@ -709,7 +712,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
       initialDate: _watchDate ?? now,
       firstDate: DateTime(1950),
       lastDate: DateTime(now.year + 5),
-      locale: const Locale('es'),
+      locale: S.lang.locale,
     );
     if (picked != null) setState(() => _watchDate = picked);
   }
@@ -725,7 +728,7 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
       initialDate: initial,
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 5),
-      locale: const Locale('es'),
+      locale: S.lang.locale,
     );
     if (date == null || !mounted) return null;
 
@@ -740,8 +743,8 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
     if (result.isBefore(DateTime.now())) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('La fecha del recordatorio debe ser futura.'),
+          SnackBar(
+            content: Text(tr('form.reminder.mustBeFuture')),
           ),
         );
       }
@@ -804,9 +807,9 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          importedInfo
-              ? 'Póster e información importados de internet'
-              : 'Póster actualizado desde internet',
+          tr(importedInfo
+              ? 'form.imported.info'
+              : 'form.imported.posterOnly'),
         ),
       ),
     );
@@ -875,9 +878,8 @@ class _ContentFormScreenState extends ConsumerState<ContentFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isEditing
-                ? '"${item.title}" actualizado'
-                : '"${item.title}" agregado al catálogo',
+            tr(_isEditing ? 'form.saved.updated' : 'form.saved.added',
+                {'title': item.title}),
           ),
         ),
       );

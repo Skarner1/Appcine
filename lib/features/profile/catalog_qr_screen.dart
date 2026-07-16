@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/content_item.dart';
 import '../../providers/providers.dart';
@@ -22,7 +23,7 @@ class CatalogQrScreen extends ConsumerWidget {
     final payload = buildCatalogQrPayload(items);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Compartir por QR')),
+      appBar: AppBar(title: Text(tr('qr.share.title'))),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -66,7 +67,7 @@ class _QrView extends StatelessWidget {
           ),
         ),
         Text(
-          '$count ${count == 1 ? 'título' : 'títulos'}',
+          trn('count.titles', count),
           style: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -75,7 +76,7 @@ class _QrView extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Que lo escaneen desde Perfil → Escanear QR. No hace falta internet.',
+          tr('qr.share.hint'),
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
         ),
@@ -102,7 +103,7 @@ class _TooBig extends StatelessWidget {
           Icon(Icons.qr_code_2_outlined, size: 64, color: AppColors.textMuted),
           const SizedBox(height: 16),
           Text(
-            'Tu catálogo no cabe en un QR',
+            tr('qr.tooBig.title'),
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: 18,
@@ -112,9 +113,10 @@ class _TooBig extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Son $count títulos y se pasa un ${payload.overflowPercent}% del máximo '
-            'que admite el formato. Un QR aguanta unos 3 KB y no hay forma de '
-            'estirarlo.',
+            tr('qr.tooBig.message', {
+              'count': count,
+              'percent': payload.overflowPercent,
+            }),
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 13,
@@ -124,7 +126,7 @@ class _TooBig extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           SecondaryButton(
-            label: 'Volver y compartir como texto',
+            label: tr('qr.tooBig.action'),
             onTap: () => Navigator.of(context).pop(),
           ),
         ],
@@ -172,16 +174,16 @@ class _ScanCatalogQrScreenState extends ConsumerState<ScanCatalogQrScreen> {
       if (!mounted) return;
 
       if (items.isEmpty) {
-        await _fail('El QR no traía ningún título.');
+        await _fail(tr('qr.scan.noTitles'));
         return;
       }
 
       final confirmed = await showAppConfirmDialog(
         context: context,
-        title: 'Importar ${items.length} títulos',
-        message:
-            'Se agregarán a tu catálogo actual (los que tengan el mismo id se sobrescriben). ¿Continuar?',
-        confirmLabel: 'Importar',
+        title: tr('qr.scan.importTitle',
+            {'count': trn('count.titles', items.length)}),
+        message: tr('profile.mergeConfirmMsg'),
+        confirmLabel: tr('profile.import.confirmLabel'),
         icon: Icons.qr_code_scanner,
         accent: AppColors.secondary,
       );
@@ -198,7 +200,7 @@ class _ScanCatalogQrScreenState extends ConsumerState<ScanCatalogQrScreen> {
     } on FormatException catch (e) {
       await _fail(e.message);
     } catch (_) {
-      await _fail('No se pudo leer el catálogo.');
+      await _fail(tr('qr.scan.readFailed'));
     }
   }
 
@@ -213,7 +215,7 @@ class _ScanCatalogQrScreenState extends ConsumerState<ScanCatalogQrScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Escanear QR')),
+      appBar: AppBar(title: Text(tr('qr.scan.title'))),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -245,7 +247,7 @@ class _ScanCatalogQrScreenState extends ConsumerState<ScanCatalogQrScreen> {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
-                'Apunta al QR que muestra el otro móvil',
+                tr('qr.scan.aim'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
               ),
@@ -282,9 +284,7 @@ class _CameraError extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                denied
-                    ? 'CineLog necesita la cámara para leer el QR. Actívala en los ajustes del sistema.'
-                    : 'No se pudo abrir la cámara.',
+                tr(denied ? 'qr.scan.permission' : 'qr.scan.cameraFailed'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 14,

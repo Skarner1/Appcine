@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
@@ -113,7 +114,7 @@ class _RouletteScreenState extends ConsumerState<RouletteScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('¿Qué veo hoy?'),
+        title: Text(tr('roulette.tooltip')),
         centerTitle: false,
       ),
       body: SafeArea(
@@ -134,12 +135,12 @@ class _RouletteScreenState extends ConsumerState<RouletteScreen> {
               child: candidates.isEmpty
                   ? EmptyState(
                       icon: Icons.casino_outlined,
-                      title: 'Sin candidatos',
+                      title: tr('roulette.empty.title'),
                       message: _filter.type == null &&
                               _filter.genre == null &&
                               _filter.maxMinutes == null
-                          ? 'No tienes contenido pendiente de ver. Agrega títulos a tu catálogo y vuelve a intentarlo.'
-                          : 'Ningún pendiente cumple estos filtros. Prueba a relajarlos.',
+                          ? tr('roulette.empty.noContent')
+                          : tr('roulette.empty.noMatch'),
                     )
                   : _Stage(
                       spinning: _spinning,
@@ -221,7 +222,7 @@ class _Filters extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
-        Padding(padding: side, child: _label('Tipo')),
+        Padding(padding: side, child: _label(tr('form.field.type'))),
         const SizedBox(height: 8),
         ContentTypeCarousel(
           types: ContentType.values,
@@ -236,14 +237,16 @@ class _Filters extends StatelessWidget {
           padding: side,
         ),
         const SizedBox(height: 12),
-        Padding(padding: side, child: _label('Duración máx.')),
+        Padding(padding: side, child: _label(tr('roulette.filter.maxDuration'))),
         const SizedBox(height: 8),
         ChipCarousel(
           padding: side,
           options: [
             for (final opt in durationOptions)
               ChipCarouselOption(
-                label: opt == null ? 'Cualquiera' : '≤ ${formatDuration(opt)}',
+                label: opt == null
+                    ? tr('roulette.filter.anyDuration')
+                    : '≤ ${formatDuration(opt)}',
                 selected: filter.maxMinutes == opt,
                 onTap: enabled
                     ? () => onChanged(
@@ -257,13 +260,13 @@ class _Filters extends StatelessWidget {
         ),
         if (availableGenres.isNotEmpty) ...[
           const SizedBox(height: 12),
-          Padding(padding: side, child: _label('Género')),
+          Padding(padding: side, child: _label(tr('filters.genre'))),
           const SizedBox(height: 8),
           ChipCarousel(
             padding: side,
             options: [
               ChipCarouselOption(
-                label: 'Todos',
+                label: tr('filters.all'),
                 selected: filter.genre == null,
                 onTap: enabled
                     ? () => onChanged(filter.copyWith(clearGenre: true))
@@ -271,7 +274,7 @@ class _Filters extends StatelessWidget {
               ),
               for (final genre in availableGenres)
                 ChipCarouselOption(
-                  label: genre,
+                  label: localizedGenre(genre),
                   selected: filter.genre == genre,
                   onTap: enabled
                       ? () => onChanged(filter.copyWith(genre: genre))
@@ -367,7 +370,7 @@ class _Stage extends StatelessWidget {
     if (item.durationMinutes > 0) {
       parts.add(formatDuration(item.durationMinutes));
     }
-    if (item.genres.isNotEmpty) parts.add(item.genres.first);
+    if (item.genres.isNotEmpty) parts.add(localizedGenre(item.genres.first));
     return parts.join('  ·  ');
   }
 }
@@ -397,7 +400,7 @@ class _Idle extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         Text(
-          '$poolSize ${poolSize == 1 ? 'título' : 'títulos'} en juego',
+          trn('roulette.inPlay', poolSize),
           style: GoogleFonts.inter(
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -406,7 +409,7 @@ class _Idle extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Pulsa "Girar" y deja que la suerte elija',
+          tr('roulette.idleHint'),
           style: GoogleFonts.inter(
             fontSize: 13,
             color: AppColors.textMuted,
@@ -471,7 +474,7 @@ class _ActionBar extends StatelessWidget {
           if (hasResult && !spinning) ...[
             Expanded(
               child: SecondaryButton(
-                label: 'Ver ficha',
+                label: tr('roulette.action.viewDetail'),
                 icon: Icons.open_in_new_rounded,
                 onTap: onOpen,
               ),
@@ -481,10 +484,10 @@ class _ActionBar extends StatelessWidget {
           Expanded(
             child: PrimaryButton(
               label: spinning
-                  ? 'Girando…'
+                  ? tr('roulette.action.spinning')
                   : hasResult
-                      ? 'Otra'
-                      : 'Girar',
+                      ? tr('roulette.action.again')
+                      : tr('roulette.action.spin'),
               icon: spinning ? null : Icons.casino_rounded,
               isLoading: spinning,
               onTap: spinning ? null : onSpin,

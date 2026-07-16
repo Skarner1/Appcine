@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/content_item.dart';
 import '../../providers/providers.dart';
@@ -41,7 +42,7 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Por Ver',
+                    tr('nav.watchlist'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
@@ -84,7 +85,7 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Mantén pulsada una tarjeta y arrástrala a otra lista',
+                      tr('watchlist.dragHint'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
@@ -108,7 +109,7 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
               ),
               error: (error, _) => EmptyState(
                 icon: Icons.error_outline,
-                title: 'Algo salió mal',
+                title: tr('common.error.title'),
                 message: '$error',
               ),
               data: (_) => items.isEmpty
@@ -119,20 +120,21 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
                         WatchlistTab.seen => Icons.check_circle_outline,
                       },
                       title: switch (_tab) {
-                        WatchlistTab.pending => 'Nada pendiente',
-                        WatchlistTab.rewatch => 'Nada para repetir',
-                        WatchlistTab.seen => 'Aún no has visto nada',
+                        WatchlistTab.pending =>
+                          tr('watchlist.empty.pending.title'),
+                        WatchlistTab.rewatch =>
+                          tr('watchlist.empty.rewatch.title'),
+                        WatchlistTab.seen => tr('watchlist.empty.seen.title'),
                       },
                       message: switch (_tab) {
                         WatchlistTab.pending =>
-                          'Agrega contenido a tu catálogo y aparecerá aquí lo que te falta ver.',
+                          tr('watchlist.empty.pending.msg'),
                         WatchlistTab.rewatch =>
-                          'Marca tus favoritas como "Volver a ver" y organiza tu maratón.',
-                        WatchlistTab.seen =>
-                          'Cuando marques contenido como visto se acumulará aquí.',
+                          tr('watchlist.empty.rewatch.msg'),
+                        WatchlistTab.seen => tr('watchlist.empty.seen.msg'),
                       },
                       actionLabel: _tab == WatchlistTab.pending
-                          ? 'Agregar contenido'
+                          ? tr('action.addContent')
                           : null,
                       onAction: _tab == WatchlistTab.pending
                           ? () => Navigator.of(context).push(
@@ -194,7 +196,12 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
     if (!mounted) return;
     setState(() => _tab = tab);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('"${item.title}" movida a ${tab.label}')),
+      SnackBar(
+        content: Text(tr('watchlist.moved', {
+          'title': item.title,
+          'list': tab.label,
+        })),
+      ),
     );
   }
 }
@@ -208,7 +215,7 @@ class _RouletteButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: '¿Qué veo hoy?',
+      message: tr('roulette.tooltip'),
       child: Material(
         color: AppColors.primary.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(14),
@@ -394,19 +401,19 @@ class _QuickStatusButton extends ConsumerWidget {
       WatchlistTab.pending => (
           Icons.check_circle_outline,
           AppColors.success,
-          'Marcar como visto',
+          tr('watchlist.markWatched'),
           () => actions.markCompleted(item),
         ),
       WatchlistTab.rewatch => (
           Icons.check_circle_outline,
           AppColors.success,
-          'Ya la volví a ver',
+          tr('watchlist.rewatchedDone'),
           () => actions.markCompleted(item),
         ),
       WatchlistTab.seen => (
           Icons.replay,
           AppColors.tertiary,
-          'Volver a ver',
+          tr('status.rewatchPending'),
           () =>
               actions.save(item.copyWith(status: WatchStatus.rewatchPending)),
         ),
@@ -420,7 +427,12 @@ class _QuickStatusButton extends ConsumerWidget {
           await onTap();
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$tooltip: "${item.title}"')),
+              SnackBar(
+                content: Text(tr('watchlist.quickDone', {
+                  'action': tooltip,
+                  'title': item.title,
+                })),
+              ),
             );
           }
         },

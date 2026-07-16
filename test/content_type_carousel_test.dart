@@ -1,3 +1,5 @@
+import 'package:cineapp/core/l10n/app_language.dart';
+import 'package:cineapp/core/l10n/strings.dart';
 import 'package:cineapp/data/models/content_item.dart';
 import 'package:cineapp/shared/widgets/content_type_carousel.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +19,9 @@ Future<void> _pumpPhone(WidgetTester tester, Widget child) async {
 }
 
 void main() {
+  // El carrusel muestra etiquetas traducidas; los tests las afirman en español.
+  S.setLanguage(AppLanguage.es);
+
   group('el ancho de cada chip lo manda su texto', () {
     testWidgets('dos etiquetas de distinto largo miden distinto', (tester) async {
       // Esta es LA propiedad que se rompió: el selector repartía el ancho a

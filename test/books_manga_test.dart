@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:cineapp/core/l10n/app_language.dart';
+import 'package:cineapp/core/l10n/strings.dart';
 import 'package:cineapp/data/models/content_item.dart';
 import 'package:cineapp/data/services/online_search_service.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,6 +38,9 @@ ContentItem _item({
 }
 
 void main() {
+  // Los textos generados (p. ej. "De <autor>") se afirman en español.
+  S.setLanguage(AppLanguage.es);
+
   group('los tipos nuevos', () {
     test('el orden del enum no se toca: Hive guarda por índice', () {
       // Si esto falla, alguien reordenó el enum y acaba de convertir las

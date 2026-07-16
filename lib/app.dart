@@ -3,6 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'core/l10n/app_language.dart';
+import 'core/l10n/strings.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
@@ -34,6 +36,9 @@ class CineLogApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(themeModeProvider);
+    final language = ref.watch(localeProvider);
+    // Mantiene el holder estático de textos en sincronía con el idioma elegido.
+    S.setLanguage(language);
     final platformBrightness = MediaQuery.maybeOf(context)?.platformBrightness ??
         WidgetsBinding.instance.platformDispatcher.platformBrightness;
     final dark = isDarkMode(mode, platformBrightness);
@@ -49,8 +54,9 @@ class CineLogApp extends ConsumerWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: mode,
-      locale: const Locale('es'),
-      supportedLocales: const [Locale('es'), Locale('en')],
+      // Flutter aplica automáticamente la dirección RTL (árabe) según el locale.
+      locale: language.locale,
+      supportedLocales: [for (final l in AppLanguage.values) l.locale],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -76,22 +82,22 @@ class _AppShellState extends ConsumerState<AppShell> {
     (
       icon: Icons.video_library_outlined,
       activeIcon: Icons.video_library,
-      label: 'Catálogo',
+      labelKey: 'nav.catalog',
     ),
     (
       icon: Icons.bookmark_outline,
       activeIcon: Icons.bookmark,
-      label: 'Por Ver',
+      labelKey: 'nav.watchlist',
     ),
     (
       icon: Icons.people_outline,
       activeIcon: Icons.people,
-      label: 'Recomendados',
+      labelKey: 'nav.recommendations',
     ),
     (
       icon: Icons.person_outline,
       activeIcon: Icons.person,
-      label: 'Mi Perfil',
+      labelKey: 'nav.profile',
     ),
   ];
 
@@ -192,6 +198,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     // reconstruye todo el cuerpo, de modo que hasta los widgets `const` que
     // leen AppColors adopten la nueva paleta.
     final mode = ref.watch(themeModeProvider);
+    final language = ref.watch(localeProvider);
+    S.setLanguage(language);
     final dark = isDarkMode(mode, MediaQuery.platformBrightnessOf(context));
 
     // AppShell siempre está bajo un MediaQuery, así que aquí la paleta refleja
@@ -201,7 +209,9 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     return Scaffold(
       body: KeyedSubtree(
-        key: ValueKey(dark),
+        // Se re-teclea por brillo e idioma para que hasta los widgets `const`
+        // relean la paleta y los textos al cambiar tema o idioma.
+        key: ValueKey('$dark-${language.code}'),
         child: IndexedStack(
           index: _index,
           children: const [
@@ -234,7 +244,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                     child: _NavItem(
                       icon: _tabs[i].icon,
                       activeIcon: _tabs[i].activeIcon,
-                      label: _tabs[i].label,
+                      label: tr(_tabs[i].labelKey),
                       selected: _index == i,
                       onTap: () => setState(() => _index = i),
                     ),
@@ -288,7 +298,7 @@ class _CatalogFab extends StatelessWidget {
                     const Icon(Icons.add, color: Colors.white, size: 26),
                     const SizedBox(width: 8),
                     Text(
-                      'Agregar',
+                      tr('common.add'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(

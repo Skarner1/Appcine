@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/services/auto_backup_service.dart';
@@ -38,7 +39,7 @@ class _AutoBackupsScreenState extends ConsumerState<AutoBackupsScreen> {
 
     if (items.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('No hay nada que copiar todavía.')),
+        SnackBar(content: Text(tr('autobackup.nothingToCopy'))),
       );
       return;
     }
@@ -47,14 +48,17 @@ class _AutoBackupsScreenState extends ConsumerState<AutoBackupsScreen> {
     final path = await ref.read(autoBackupServiceProvider).run(items, now: now);
     if (path == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('No se pudo crear la copia.')),
+        SnackBar(content: Text(tr('autobackup.createFailed'))),
       );
       return;
     }
 
     await ref.read(autoBackupLastRunProvider.notifier).markRun(now);
     messenger.showSnackBar(
-      SnackBar(content: Text('Copia creada con ${items.length} títulos')),
+      SnackBar(
+        content: Text(tr('autobackup.created',
+            {'count': trn('count.titles', items.length)})),
+      ),
     );
     _reload();
   }
@@ -71,7 +75,7 @@ class _AutoBackupsScreenState extends ConsumerState<AutoBackupsScreen> {
         return null;
       } catch (_) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('No se pudo leer la copia.')),
+          SnackBar(content: Text(tr('autobackup.readFailed'))),
         );
         return null;
       }
@@ -80,17 +84,17 @@ class _AutoBackupsScreenState extends ConsumerState<AutoBackupsScreen> {
 
     if (items.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Esa copia está vacía.')),
+        SnackBar(content: Text(tr('autobackup.emptyBackup'))),
       );
       return;
     }
 
     final confirmed = await showAppConfirmDialog(
       context: context,
-      title: 'Restaurar ${items.length} títulos',
-      message:
-          'Se añadirán a tu catálogo actual (los que tengan el mismo id se sobrescriben). ¿Continuar?',
-      confirmLabel: 'Restaurar',
+      title: tr('autobackup.restore.title',
+          {'count': trn('count.titles', items.length)}),
+      message: tr('profile.mergeConfirmMsg'),
+      confirmLabel: tr('profile.restore.confirmLabel'),
       icon: Icons.restore_outlined,
       accent: AppColors.secondary,
     );
@@ -99,7 +103,7 @@ class _AutoBackupsScreenState extends ConsumerState<AutoBackupsScreen> {
     await ref.read(contentRepositoryProvider).saveAll(items);
     if (!mounted) return;
     messenger.showSnackBar(
-      SnackBar(content: Text('${items.length} títulos restaurados')),
+      SnackBar(content: Text(trn('profile.restored', items.length))),
     );
   }
 
@@ -107,12 +111,12 @@ class _AutoBackupsScreenState extends ConsumerState<AutoBackupsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Copias automáticas'),
+        title: Text(tr('autobackup.screenTitle')),
         actions: [
           IconButton(
             onPressed: _backupNow,
             icon: const Icon(Icons.add),
-            tooltip: 'Copiar ahora',
+            tooltip: tr('autobackup.backupNow'),
           ),
         ],
       ),
@@ -125,12 +129,10 @@ class _AutoBackupsScreenState extends ConsumerState<AutoBackupsScreen> {
 
           final backups = snapshot.data ?? const <AutoBackup>[];
           if (backups.isEmpty) {
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.history_toggle_off,
-              title: 'Todavía no hay copias',
-              message:
-                  'La app guarda una sola, cada cierto tiempo, mientras tengas '
-                  'contenido. También puedes crear una ahora con el +.',
+              title: tr('autobackup.noneTitle'),
+              message: tr('autobackup.noneMessage'),
             );
           }
 
@@ -207,7 +209,7 @@ class _BackupTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '${formatRelative(backup.date)} · $kb KB'
-                      '${isLatest ? ' · la más reciente' : ''}',
+                      '${isLatest ? ' · ${tr('autobackup.latest')}' : ''}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
@@ -243,9 +245,7 @@ class _Caveat extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Estas copias viven dentro de la app: te salvan de un borrado sin '
-              'querer o de un import que salga mal, pero se van si desinstalas '
-              'CineLog. Para eso usa "Crear copia de seguridad" y guárdala fuera.',
+              tr('autobackup.caveat'),
               style: GoogleFonts.inter(
                 fontSize: 12,
                 height: 1.5,

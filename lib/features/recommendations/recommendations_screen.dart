@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
@@ -40,7 +41,7 @@ class _RecommendationsScreenState
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Text(
-              'Recomendados',
+              tr('nav.recommendations'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
@@ -85,17 +86,16 @@ class _RecommendationsScreenState
                       RecommendationTab.trending =>
                         Icons.local_fire_department_outlined,
                     },
-                    title: 'Sin recomendaciones',
+                    title: tr('rec.empty.title'),
                     message: switch (_tab) {
                       RecommendationTab.friends =>
-                        'Cuando un amigo te recomiende algo, agrégalo con la opción "¿Es una recomendación?" y aparecerá aquí.',
-                      RecommendationTab.system =>
-                        'Aquí verás sugerencias del sistema basadas en tu catálogo.',
+                        tr('rec.empty.friends.msg'),
+                      RecommendationTab.system => tr('rec.empty.system.msg'),
                       RecommendationTab.trending =>
-                        'Aquí verás el contenido en tendencia que agregues.',
+                        tr('rec.empty.trending.msg'),
                     },
                     actionLabel: _tab == RecommendationTab.friends
-                        ? 'Agregar recomendación'
+                        ? tr('rec.empty.action')
                         : null,
                     onAction: _tab == RecommendationTab.friends
                         ? () => Navigator.of(context).push(
@@ -146,7 +146,7 @@ class _RecommendationCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final friendName = item.recommendedBy ?? 'Amigo';
+    final friendName = item.recommendedBy ?? tr('rec.friendDefault');
     final isPendingAlready = item.status == WatchStatus.notStarted;
 
     return ScaleTap(
@@ -212,10 +212,11 @@ class _RecommendationCard extends ConsumerWidget {
                         Text(
                           switch (tab) {
                             RecommendationTab.friends =>
-                              '$friendName te recomienda',
+                              tr('rec.recommendsYou', {'name': friendName}),
                             RecommendationTab.system =>
-                              'Sugerencia del sistema',
-                            RecommendationTab.trending => 'En tendencia',
+                              tr('source.algorithm'),
+                            RecommendationTab.trending =>
+                              tr('rec.header.trending'),
                           },
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -276,7 +277,7 @@ class _RecommendationCard extends ConsumerWidget {
                               item.genres.take(2).join(', '),
                             if (item.durationMinutes > 0)
                               item.type.hasEpisodes
-                                  ? '${item.episodes ?? '?'} ep'
+                                  ? '${item.episodes ?? '?'} ${tr('abbr.ep')}'
                                   : formatDuration(item.durationMinutes),
                           ].join(' · '),
                           maxLines: 1,
@@ -326,7 +327,7 @@ class _RecommendationCard extends ConsumerWidget {
                           color: AppColors.warning,
                         ),
                         label: Text(
-                          'En tu lista "Por Ver"',
+                          tr('rec.inWatchlist'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
@@ -345,7 +346,9 @@ class _RecommendationCard extends ConsumerWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  '"${item.title}" agregada a Por Ver',
+                                  tr('rec.addedToWatchlist', {
+                                    'title': item.title,
+                                  }),
                                 ),
                               ),
                             );
@@ -366,7 +369,7 @@ class _RecommendationCard extends ConsumerWidget {
                         ),
                         icon: const Icon(Icons.bookmark_add_outlined, size: 18),
                         label: Text(
-                          'Marcar como Pendiente',
+                          tr('rec.markPending'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(

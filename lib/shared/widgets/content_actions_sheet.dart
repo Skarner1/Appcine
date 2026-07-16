@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/content_item.dart';
 import '../../features/content_form/content_form_screen.dart';
@@ -66,8 +67,8 @@ class _ContentActionsSheet extends ConsumerWidget {
                   ? Icons.favorite_rounded
                   : Icons.favorite_outline_rounded,
               label: item.isFavorite
-                  ? 'Quitar de favoritos'
-                  : 'Marcar como favorito',
+                  ? tr('actions.favRemove')
+                  : tr('actions.favAdd'),
               color: AppColors.primary,
               onTap: () {
                 final actions = ref.read(contentActionsProvider);
@@ -77,7 +78,9 @@ class _ContentActionsSheet extends ConsumerWidget {
             ),
             _ActionTile(
               icon: Icons.image_outlined,
-              label: item.posterUrl == null ? 'Agregar imagen' : 'Cambiar imagen',
+              label: item.posterUrl == null
+                  ? tr('actions.imageAdd')
+                  : tr('actions.imageChange'),
               color: AppColors.tertiary,
               onTap: () {
                 final actions = ref.read(contentActionsProvider);
@@ -98,8 +101,8 @@ class _ContentActionsSheet extends ConsumerWidget {
                       SnackBar(
                         content: Text(
                           value == null
-                              ? 'Portada quitada'
-                              : 'Portada actualizada',
+                              ? tr('actions.posterRemoved')
+                              : tr('actions.posterUpdated'),
                         ),
                       ),
                     );
@@ -109,7 +112,7 @@ class _ContentActionsSheet extends ConsumerWidget {
             ),
             _ActionTile(
               icon: Icons.edit_outlined,
-              label: 'Editar',
+              label: tr('common.edit'),
               color: AppColors.secondary,
               onTap: () {
                 final navigator = Navigator.of(context);
@@ -123,7 +126,7 @@ class _ContentActionsSheet extends ConsumerWidget {
             ),
             _ActionTile(
               icon: Icons.delete_outline,
-              label: 'Eliminar',
+              label: tr('common.delete'),
               color: AppColors.error,
               onTap: () => _confirmDelete(context, ref),
             ),
@@ -188,10 +191,9 @@ class _ContentActionsSheet extends ConsumerWidget {
 
     final confirmed = await showAppConfirmDialog(
       context: context,
-      title: '¿Eliminar "${item.title}"?',
-      message:
-          'Se quitará del catálogo junto con sus recordatorios. Esta acción no se puede deshacer.',
-      confirmLabel: 'Eliminar',
+      title: tr('actions.deleteConfirmTitle', {'title': item.title}),
+      message: tr('actions.deleteConfirmMsg'),
+      confirmLabel: tr('common.delete'),
       icon: Icons.delete_outline,
       accent: AppColors.error,
     );
@@ -200,7 +202,7 @@ class _ContentActionsSheet extends ConsumerWidget {
     navigator.pop(); // Cierra el menú de acciones.
     await actions.delete(item);
     messenger.showSnackBar(
-      SnackBar(content: Text('"${item.title}" eliminado')),
+      SnackBar(content: Text(tr('actions.deleted', {'title': item.title}))),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
@@ -63,25 +64,25 @@ class ContentDetailScreen extends ConsumerWidget {
                     const SizedBox(height: 24),
                   ],
                   if (item.userRating != null) ...[
-                    _sectionTitle('Tu calificación'),
+                    _sectionTitle(tr('detail.section.yourRating')),
                     RatingStars(rating: item.userRating, size: 26),
                     const SizedBox(height: 24),
                   ],
                   if (item.genres.isNotEmpty) ...[
-                    _sectionTitle('Géneros'),
+                    _sectionTitle(tr('form.field.genres')),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
                         for (final genre in item.genres)
-                          GenreChip(label: genre),
+                          GenreChip(label: localizedGenre(genre)),
                       ],
                     ),
                     const SizedBox(height: 24),
                   ],
                   if (item.personalNote != null &&
                       item.personalNote!.isNotEmpty) ...[
-                    _sectionTitle('Nota personal'),
+                    _sectionTitle(tr('form.field.note')),
                     _ExpandableNote(text: item.personalNote!),
                     const SizedBox(height: 24),
                   ],
@@ -92,12 +93,12 @@ class ContentDetailScreen extends ConsumerWidget {
                   if (item.watchLog.isNotEmpty ||
                       item.status == WatchStatus.completed ||
                       item.status == WatchStatus.rewatchPending) ...[
-                    _sectionTitle('Historial de visionado'),
+                    _sectionTitle(tr('detail.section.watchHistory')),
                     _WatchHistory(item: item),
                     const SizedBox(height: 24),
                   ],
                   if (related.isNotEmpty) ...[
-                    _sectionTitle('Contenido similar'),
+                    _sectionTitle(tr('detail.section.similar')),
                     SizedBox(
                       height: 210,
                       child: ListView.separated(
@@ -305,7 +306,7 @@ class ContentDetailScreen extends ConsumerWidget {
       children: [
         _QuickAction(
           icon: isSeen ? Icons.replay : Icons.check_circle_outline,
-          label: isSeen ? 'Volver a ver' : 'Marcar Visto',
+          label: tr(isSeen ? 'detail.action.rewatch' : 'detail.action.markWatched'),
           color: isSeen ? AppColors.tertiary : AppColors.success,
           onTap: () async {
             if (isSeen) {
@@ -318,19 +319,19 @@ class ContentDetailScreen extends ConsumerWidget {
         ),
         _QuickAction(
           icon: Icons.alarm_add_outlined,
-          label: 'Programar',
+          label: tr('detail.action.schedule'),
           color: AppColors.secondary,
           onTap: () => _scheduleReminder(context, ref, item),
         ),
         _QuickAction(
           icon: Icons.share_outlined,
-          label: 'Compartir',
+          label: tr('detail.action.share'),
           color: AppColors.info,
           onTap: () => _share(item),
         ),
         _QuickAction(
           icon: Icons.edit_outlined,
-          label: 'Editar',
+          label: tr('common.edit'),
           color: AppColors.textSecondary,
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
@@ -345,9 +346,11 @@ class ContentDetailScreen extends ConsumerWidget {
   Widget _buildInfoGrid(BuildContext context, ContentItem item) {
     final entries = <(String, String)>[
       if (item.releaseDate != null)
-        ('Año', item.releaseDate!.year.toString()),
+        (tr('detail.info.year'), item.releaseDate!.year.toString()),
       (
-        item.type.hasEpisodes ? 'Por ${item.type.unitLabel}' : 'Duración',
+        item.type.hasEpisodes
+            ? tr('detail.info.per', {'unit': item.type.unitLabel})
+            : tr('form.field.duration'),
         formatDuration(item.durationMinutes),
       ),
       if (item.episodes != null)
@@ -356,16 +359,18 @@ class ContentDetailScreen extends ConsumerWidget {
               item.type.unitsLabel.substring(1),
           '${item.episodes}',
         ),
-      ('Agregada', formatRelative(item.addedAt)),
+      (tr('detail.info.added'), formatRelative(item.addedAt)),
       if (item.watchDate != null)
         (
           item.status == WatchStatus.completed
-              ? (item.type.isRead ? 'Leída el' : 'Vista el')
-              : 'Programada',
+              ? (item.type.isRead
+                  ? tr('detail.info.readOn')
+                  : tr('detail.info.watchedOn'))
+              : tr('detail.info.scheduled'),
           formatDate(item.watchDate!),
         ),
       if (item.notifyMe && item.notificationDate != null)
-        ('Recordatorio', formatDateTime(item.notificationDate!)),
+        (tr('detail.info.reminder'), formatDateTime(item.notificationDate!)),
     ];
 
     return Container(
@@ -445,7 +450,7 @@ class ContentDetailScreen extends ConsumerWidget {
       initialDate: initial,
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 5),
-      locale: const Locale('es'),
+      locale: S.lang.locale,
     );
     if (date == null || !context.mounted) return;
 
@@ -459,7 +464,7 @@ class ContentDetailScreen extends ConsumerWidget {
         DateTime(date.year, date.month, date.day, time.hour, time.minute);
     if (scheduled.isBefore(DateTime.now())) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Elige una fecha y hora futuras.')),
+        SnackBar(content: Text(tr('detail.schedule.mustBeFuture'))),
       );
       return;
     }
@@ -475,25 +480,31 @@ class ContentDetailScreen extends ConsumerWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Recordatorio programado: ${formatDateTime(scheduled)}'),
+          content: Text(tr('detail.schedule.set',
+              {'date': formatDateTime(scheduled)})),
         ),
       );
     }
   }
 
   void _share(ContentItem item) {
-    final buffer = StringBuffer('🎬 Te recomiendo: ${item.title}');
+    final buffer =
+        StringBuffer(tr('detail.share.recommend', {'title': item.title}));
     if (item.genres.isNotEmpty) {
-      buffer.write('\nGéneros: ${item.genres.join(', ')}');
+      buffer.write('\n');
+      buffer.write(tr('detail.share.genres',
+          {'genres': item.genres.map(localizedGenre).join(', ')}));
     }
     if (item.userRating != null) {
-      buffer.write('\nMi nota: ${item.userRating!.toStringAsFixed(1)}/10 ⭐');
+      buffer.write('\n');
+      buffer.write(tr('detail.share.myRating',
+          {'rating': item.userRating!.toStringAsFixed(1)}));
     }
     if (item.personalNote != null && item.personalNote!.isNotEmpty) {
       buffer.write('\n"${item.personalNote}"');
     }
-    buffer.write('\n\nCompartido desde CineLog Pro 🍿');
+    buffer.write('\n\n');
+    buffer.write(tr('detail.share.footer'));
     SharePlus.instance.share(ShareParams(text: buffer.toString()));
   }
 
@@ -504,10 +515,9 @@ class ContentDetailScreen extends ConsumerWidget {
   ) async {
     final confirmed = await showAppConfirmDialog(
       context: context,
-      title: '¿Eliminar "${item.title}"?',
-      message:
-          'Se quitará del catálogo junto con sus recordatorios. Esta acción no se puede deshacer.',
-      confirmLabel: 'Eliminar',
+      title: tr('detail.delete.title', {'title': item.title}),
+      message: tr('detail.delete.message'),
+      confirmLabel: tr('common.delete'),
       icon: Icons.delete_outline,
       accent: AppColors.error,
     );
@@ -517,7 +527,7 @@ class ContentDetailScreen extends ConsumerWidget {
     if (context.mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('"${item.title}" eliminado')),
+        SnackBar(content: Text(tr('actions.deleted', {'title': item.title}))),
       );
     }
   }
@@ -651,7 +661,7 @@ class _EpisodeProgress extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Progreso de ${item.type.unitsLabel}',
+                  tr('detail.progress.title', {'units': item.type.unitsLabel}),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
@@ -699,7 +709,7 @@ class _EpisodeProgress extends ConsumerWidget {
                     ),
                     icon: const Icon(Icons.remove, size: 20),
                     label: Text(
-                      'Anterior',
+                      tr('detail.progress.previous'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
@@ -726,7 +736,7 @@ class _EpisodeProgress extends ConsumerWidget {
                     ),
                     icon: const Icon(Icons.add, size: 20),
                     label: Text(
-                      'Visto +1',
+                      tr('detail.progress.watchedPlusOne'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
@@ -791,7 +801,7 @@ class _ExpandableNoteState extends State<_ExpandableNote> {
             if (widget.text.length > 120) ...[
               const SizedBox(height: 8),
               Text(
-                _expanded ? 'Ver menos' : 'Ver más',
+                tr(_expanded ? 'detail.note.less' : 'detail.note.more'),
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -814,7 +824,7 @@ class _RecommendationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = item.recommendedBy ?? 'Un amigo';
+    final name = item.recommendedBy ?? tr('detail.rec.defaultName');
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -851,7 +861,7 @@ class _RecommendationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Recomendado por $name',
+                  tr('detail.rec.by', {'name': name}),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
@@ -898,7 +908,8 @@ class _WatchHistory extends ConsumerWidget {
       initialDate: now,
       firstDate: DateTime(1950),
       lastDate: now,
-      helpText: '¿Cuándo lo viste?',
+      helpText: tr('detail.history.whenSeen'),
+      locale: S.lang.locale,
     );
     if (picked == null) return;
 
@@ -907,8 +918,8 @@ class _WatchHistory extends ConsumerWidget {
     if (minutes <= 0) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ponle una duración al título para poder anotarlo.'),
+          SnackBar(
+            content: Text(tr('detail.history.needDuration')),
           ),
         );
       }
@@ -938,10 +949,10 @@ class _WatchHistory extends ConsumerWidget {
   ) async {
     final confirmed = await showAppConfirmDialog(
       context: context,
-      title: '¿Borrar este visionado?',
-      message:
-          'Se quitará del diario el del ${formatDate(event.date)}. Tus estadísticas se recalculan.',
-      confirmLabel: 'Borrar',
+      title: tr('detail.history.deleteTitle'),
+      message: tr('detail.history.deleteMessage',
+          {'date': formatDate(event.date)}),
+      confirmLabel: tr('common.delete'),
       icon: Icons.delete_outline,
       accent: AppColors.error,
     );
@@ -977,7 +988,7 @@ class _WatchHistory extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  events.length == 1 ? 'Visto 1 vez' : 'Visto ${events.length} veces',
+                  trn('detail.history.seenTimes', events.length),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
@@ -1014,7 +1025,7 @@ class _WatchHistory extends ConsumerWidget {
             child: TextButton.icon(
               onPressed: () => _addEvent(context, ref),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Anotar otro visionado'),
+              label: Text(tr('detail.history.addAnother')),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.secondary,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1081,7 +1092,7 @@ class _WatchEventRow extends StatelessWidget {
             onPressed: onDelete,
             icon: const Icon(Icons.close, size: 16),
             color: AppColors.textMuted,
-            tooltip: 'Borrar este visionado',
+            tooltip: tr('detail.history.deleteTooltip'),
             visualDensity: VisualDensity.compact,
           ),
         ],

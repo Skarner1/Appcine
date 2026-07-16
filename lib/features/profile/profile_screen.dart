@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/app_language.dart';
+import '../../core/l10n/strings.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
@@ -82,7 +84,9 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      '${stats.totalItems} títulos en tu catálogo',
+                      tr('profile.titlesInCatalog', {
+                        'items': trn('count.titles', stats.totalItems),
+                      }),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
@@ -94,7 +98,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
               IconButton(
-                tooltip: 'Editar nombre',
+                tooltip: tr('profile.editName'),
                 onPressed: () => _editName(context, ref, name),
                 icon: Icon(
                   Icons.edit_outlined,
@@ -112,7 +116,7 @@ class ProfileScreen extends ConsumerWidget {
                   icon: Icons.check_circle_outline,
                   color: AppColors.success,
                   value: '${stats.completedCount}',
-                  label: 'Vistos',
+                  label: tr('profile.stat.watched'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -121,7 +125,7 @@ class ProfileScreen extends ConsumerWidget {
                   icon: Icons.schedule,
                   color: AppColors.warning,
                   value: '${stats.pendingCount}',
-                  label: 'Pendientes',
+                  label: tr('profile.stat.pending'),
                 ),
               ),
             ],
@@ -134,7 +138,7 @@ class ProfileScreen extends ConsumerWidget {
                   icon: Icons.timer_outlined,
                   color: AppColors.secondary,
                   value: formatLongDuration(stats.totalWatchedMinutes),
-                  label: 'Tiempo visto',
+                  label: tr('profile.stat.watchTime'),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const WatchStatsScreen(),
@@ -147,9 +151,8 @@ class ProfileScreen extends ConsumerWidget {
                 child: _StatCard(
                   icon: Icons.local_fire_department_outlined,
                   color: AppColors.primary,
-                  value:
-                      '${stats.streakDays} ${stats.streakDays == 1 ? 'día' : 'días'}',
-                  label: 'Racha',
+                  value: trn('profile.streakDays', stats.streakDays),
+                  label: tr('profile.stat.streak'),
                 ),
               ),
             ],
@@ -158,7 +161,7 @@ class ProfileScreen extends ConsumerWidget {
           // Gráfico: distribución por tipo (donut).
           if (stats.totalItems > 0) ...[
             _SectionCard(
-              title: 'Tu catálogo por tipo',
+              title: tr('profile.section.byType'),
               child: _TypeDonutChart(byType: stats.byType),
             ),
             const SizedBox(height: 16),
@@ -166,14 +169,14 @@ class ProfileScreen extends ConsumerWidget {
           // Gráfico: top géneros (barras).
           if (stats.topGenres.isNotEmpty) ...[
             _SectionCard(
-              title: 'Géneros más frecuentes',
+              title: tr('profile.section.topGenres'),
               child: _GenresBarChart(topGenres: stats.topGenres),
             ),
             const SizedBox(height: 24),
           ],
           // Notificaciones programadas (resumen).
           _SectionCard(
-            title: 'Notificaciones',
+            title: tr('profile.section.notifications'),
             trailing: TextButton(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -181,7 +184,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
               child: Text(
-                'Ver todas',
+                tr('profile.viewAll'),
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -202,7 +205,7 @@ class ProfileScreen extends ConsumerWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'No tienes recordatorios programados.',
+                            tr('profile.noReminders'),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
@@ -256,7 +259,7 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           // Configuración.
           Text(
-            'Configuración',
+            tr('profile.section.settings'),
             style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -266,18 +269,16 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           _SettingsTile(
             icon: Icons.notification_add_outlined,
-            title: 'Probar notificaciones',
-            subtitle: 'Envía una notificación de prueba',
+            title: tr('profile.testNotif.title'),
+            subtitle: tr('profile.testNotif.subtitle'),
             onTap: () async {
               final granted =
                   await NotificationService.instance.requestPermissions();
               await NotificationService.instance.showTestNotification();
               if (context.mounted && !granted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Activa los permisos de notificación del sistema para recibir recordatorios.',
-                    ),
+                  SnackBar(
+                    content: Text(tr('profile.notifPermsHint')),
                   ),
                 );
               }
@@ -285,48 +286,49 @@ class ProfileScreen extends ConsumerWidget {
           ),
           _SettingsTile(
             icon: Icons.backup_outlined,
-            title: 'Crear copia de seguridad',
-            subtitle: 'Guarda tu catálogo en un archivo .json',
+            title: tr('profile.backup.title'),
+            subtitle: tr('profile.backup.subtitle'),
             onTap: () => _export(context, ref),
           ),
           _SettingsTile(
             icon: Icons.restore_outlined,
-            title: 'Restaurar copia',
-            subtitle: 'Importa un archivo .json de backup',
+            title: tr('profile.restore.title'),
+            subtitle: tr('profile.restore.subtitle'),
             onTap: () => _restore(context, ref),
           ),
           _SettingsTile(
             icon: Icons.ios_share_outlined,
-            title: 'Compartir catálogo',
-            subtitle: 'Envía tu colección a otras personas (.json o texto)',
+            title: tr('profile.share.title'),
+            subtitle: tr('profile.share.subtitle'),
             onTap: () => _share(context, ref),
           ),
           _SettingsTile(
             icon: Icons.download_outlined,
-            title: 'Importar catálogo',
-            subtitle: 'Añade un catálogo que te compartieron',
+            title: tr('profile.import.title'),
+            subtitle: tr('profile.import.subtitle'),
             onTap: () => _import(context, ref),
           ),
           _SettingsTile(
             icon: Icons.qr_code_scanner,
-            title: 'Escanear QR',
-            subtitle: 'Lee el catálogo de otro móvil, sin internet',
+            title: tr('profile.scanQr.title'),
+            subtitle: tr('profile.scanQr.subtitle'),
             onTap: () => _scanQr(context, ref),
           ),
+          const _LanguageSelector(),
           const _ThemeSelector(),
           const _StalledReminderSelector(),
           const _AutoBackupSelector(),
           _SettingsTile(
             icon: Icons.delete_sweep_outlined,
-            title: 'Vaciar catálogo',
-            subtitle: 'Elimina todo el contenido guardado',
+            title: tr('profile.clear.title'),
+            subtitle: tr('profile.clear.subtitle'),
             color: AppColors.error,
             onTap: () => _clearAll(context, ref),
           ),
           const SizedBox(height: 24),
           Center(
             child: Text(
-              'CineLog Pro v1.0 · Hecho con ❤️ y 🍿',
+              tr('profile.footer'),
               style: GoogleFonts.inter(
                 fontSize: 12,
                 color: AppColors.textMuted,
@@ -356,7 +358,7 @@ class ProfileScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Tu nombre',
+                tr('profile.yourName'),
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -373,21 +375,21 @@ class ProfileScreen extends ConsumerWidget {
                   fontSize: 14,
                   color: AppColors.textPrimary,
                 ),
-                decoration: const InputDecoration(hintText: 'Ej. Iván'),
+                decoration: InputDecoration(hintText: tr('profile.nameHint')),
               ),
               const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
                     child: SecondaryButton(
-                      label: 'Cancelar',
+                      label: tr('common.cancel'),
                       onTap: () => Navigator.of(context).pop(),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: PrimaryButton(
-                      label: 'Guardar',
+                      label: tr('common.save'),
                       onTap: () =>
                           Navigator.of(context).pop(controller.text.trim()),
                     ),
@@ -408,7 +410,7 @@ class ProfileScreen extends ConsumerWidget {
     final items = ref.read(contentRepositoryProvider).getAll();
     if (items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay nada que respaldar todavía.')),
+        SnackBar(content: Text(tr('profile.export.empty'))),
       );
       return;
     }
@@ -417,8 +419,8 @@ class ProfileScreen extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo crear la copia de seguridad.'),
+          SnackBar(
+            content: Text(tr('profile.export.failed')),
           ),
         );
       }
@@ -439,7 +441,7 @@ class ProfileScreen extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo leer el archivo.')),
+          SnackBar(content: Text(tr('profile.restore.readFailed'))),
         );
       }
       return;
@@ -449,7 +451,7 @@ class ProfileScreen extends ConsumerWidget {
     if (backup.items.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('El backup no contiene títulos.')),
+          SnackBar(content: Text(tr('profile.restore.noTitles'))),
         );
       }
       return;
@@ -458,10 +460,11 @@ class ProfileScreen extends ConsumerWidget {
     if (!context.mounted) return;
     final confirmed = await showAppConfirmDialog(
       context: context,
-      title: 'Restaurar ${backup.items.length} títulos',
-      message:
-          'Se añadirán a tu catálogo actual (los que tengan el mismo id se sobrescriben). ¿Continuar?',
-      confirmLabel: 'Restaurar',
+      title: tr('profile.restore.confirmTitle', {
+        'items': trn('count.titles', backup.items.length),
+      }),
+      message: tr('profile.mergeConfirmMsg'),
+      confirmLabel: tr('profile.restore.confirmLabel'),
       icon: Icons.restore_outlined,
       accent: AppColors.secondary,
     );
@@ -470,7 +473,7 @@ class ProfileScreen extends ConsumerWidget {
     await ref.read(contentRepositoryProvider).saveAll(backup.items);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${backup.items.length} títulos restaurados')),
+        SnackBar(content: Text(trn('profile.restored', backup.items.length))),
       );
     }
   }
@@ -479,8 +482,8 @@ class ProfileScreen extends ConsumerWidget {
     final items = ref.read(contentRepositoryProvider).getAll();
     if (items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tu catálogo está vacío: agrega títulos primero.'),
+        SnackBar(
+          content: Text(tr('profile.share.empty')),
         ),
       );
       return;
@@ -524,7 +527,7 @@ class ProfileScreen extends ConsumerWidget {
     if (imported == null || !context.mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$imported títulos importados')),
+      SnackBar(content: Text(trn('profile.imported', imported))),
     );
   }
 
@@ -534,10 +537,8 @@ class ProfileScreen extends ConsumerWidget {
     if (text == null || text.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Copia primero el catálogo que te compartieron y vuelve a intentarlo.',
-            ),
+          SnackBar(
+            content: Text(tr('profile.import.clipboardEmpty')),
           ),
         );
       }
@@ -550,8 +551,8 @@ class ProfileScreen extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('El portapapeles no contiene un catálogo válido.'),
+          SnackBar(
+            content: Text(tr('profile.import.invalid')),
           ),
         );
       }
@@ -561,7 +562,7 @@ class ProfileScreen extends ConsumerWidget {
     if (items.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('El catálogo compartido está vacío.')),
+          SnackBar(content: Text(tr('profile.import.sharedEmpty'))),
         );
       }
       return;
@@ -570,10 +571,11 @@ class ProfileScreen extends ConsumerWidget {
     if (!context.mounted) return;
     final confirmed = await showAppConfirmDialog(
       context: context,
-      title: 'Importar ${items.length} títulos',
-      message:
-          'Se agregarán a tu catálogo actual (los que tengan el mismo id se sobrescriben). ¿Continuar?',
-      confirmLabel: 'Importar',
+      title: tr('profile.import.confirmTitle', {
+        'items': trn('count.titles', items.length),
+      }),
+      message: tr('profile.mergeConfirmMsg'),
+      confirmLabel: tr('profile.import.confirmLabel'),
       icon: Icons.download_outlined,
       accent: AppColors.secondary,
     );
@@ -582,7 +584,7 @@ class ProfileScreen extends ConsumerWidget {
     await ref.read(contentRepositoryProvider).saveAll(items);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${items.length} títulos importados')),
+        SnackBar(content: Text(trn('profile.imported', items.length))),
       );
     }
   }
@@ -590,10 +592,9 @@ class ProfileScreen extends ConsumerWidget {
   Future<void> _clearAll(BuildContext context, WidgetRef ref) async {
     final confirmed = await showAppConfirmDialog(
       context: context,
-      title: '¿Vaciar todo el catálogo?',
-      message:
-          'Se eliminará todo tu contenido y recordatorios. Exporta antes si quieres conservar una copia.',
-      confirmLabel: 'Vaciar todo',
+      title: tr('profile.clear.confirmTitle'),
+      message: tr('profile.clear.confirmMsg'),
+      confirmLabel: tr('profile.clear.confirmLabel'),
       icon: Icons.delete_sweep_outlined,
       accent: AppColors.error,
     );
@@ -606,7 +607,7 @@ class ProfileScreen extends ConsumerWidget {
     await repo.clear();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Catálogo vaciado')),
+        SnackBar(content: Text(tr('profile.clear.done'))),
       );
     }
   }
@@ -654,7 +655,7 @@ class _ShareOptionsSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                'Compartir $count títulos',
+                tr('share.sheet.title', {'items': trn('count.titles', count)}),
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -666,22 +667,22 @@ class _ShareOptionsSheet extends StatelessWidget {
             _ShareOptionTile(
               icon: Icons.notes_outlined,
               color: AppColors.secondary,
-              title: 'Como texto (bloc de notas)',
-              subtitle: 'Lista legible para cualquier chat',
+              title: tr('share.opt.text.title'),
+              subtitle: tr('share.opt.text.subtitle'),
               onTap: onText,
             ),
             _ShareOptionTile(
               icon: Icons.image_outlined,
               color: AppColors.tertiary,
-              title: 'Como imagen',
-              subtitle: 'Una tarjeta .png con tus pósters',
+              title: tr('share.opt.image.title'),
+              subtitle: tr('share.opt.image.subtitle'),
               onTap: onImage,
             ),
             _ShareOptionTile(
               icon: Icons.qr_code_2,
               color: AppColors.primary,
-              title: 'Como código QR',
-              subtitle: 'Que lo escaneen del móvil, sin internet',
+              title: tr('share.opt.qr.title'),
+              subtitle: tr('share.opt.qr.subtitle'),
               onTap: onQr,
             ),
             const SizedBox(height: 12),
@@ -1059,18 +1060,124 @@ class _GenresBarChart extends StatelessWidget {
   }
 }
 
+/// Selector de idioma de la app. Abre una hoja con los idiomas soportados y su
+/// nombre nativo. Persiste vía [localeProvider].
+class _LanguageSelector extends ConsumerWidget {
+  const _LanguageSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(localeProvider);
+    return _SettingsTile(
+      icon: Icons.language_outlined,
+      title: tr('settings.language'),
+      subtitle: current.nativeName,
+      onTap: () => _showPicker(context, ref, current),
+    );
+  }
+
+  void _showPicker(BuildContext context, WidgetRef ref, AppLanguage current) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 32,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.textMuted,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  tr('settings.language'),
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const Divider(height: 24),
+              for (final lang in AppLanguage.values)
+                InkWell(
+                  onTap: () {
+                    ref.read(localeProvider.notifier).setLanguage(lang);
+                    Navigator.of(sheetContext).pop();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            lang.nativeName,
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: lang == current
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: lang == current
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (lang == current)
+                          Icon(Icons.check, color: AppColors.primary, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Selector de tema: Sistema / Claro / Oscuro. Persiste vía [themeModeProvider].
 class _ThemeSelector extends ConsumerWidget {
   const _ThemeSelector();
 
-  static const List<({ThemeMode mode, IconData icon, String label})> _options = [
+  static const List<({ThemeMode mode, IconData icon, String labelKey})>
+      _options = [
     (
       mode: ThemeMode.system,
       icon: Icons.brightness_auto_outlined,
-      label: 'Sistema',
+      labelKey: 'theme.system',
     ),
-    (mode: ThemeMode.light, icon: Icons.light_mode_outlined, label: 'Claro'),
-    (mode: ThemeMode.dark, icon: Icons.dark_mode_outlined, label: 'Oscuro'),
+    (
+      mode: ThemeMode.light,
+      icon: Icons.light_mode_outlined,
+      labelKey: 'theme.light',
+    ),
+    (
+      mode: ThemeMode.dark,
+      icon: Icons.dark_mode_outlined,
+      labelKey: 'theme.dark',
+    ),
   ];
 
   @override
@@ -1102,7 +1209,7 @@ class _ThemeSelector extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tema',
+                        tr('theme.title'),
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -1111,7 +1218,7 @@ class _ThemeSelector extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Claro, oscuro o según el sistema',
+                        tr('theme.subtitle'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
@@ -1132,7 +1239,7 @@ class _ThemeSelector extends ConsumerWidget {
                   Expanded(
                     child: _ThemeOptionButton(
                       icon: _options[i].icon,
-                      label: _options[i].label,
+                      label: tr(_options[i].labelKey),
                       selected: mode == _options[i].mode,
                       onTap: () => ref
                           .read(themeModeProvider.notifier)
@@ -1155,9 +1262,9 @@ class _StalledReminderSelector extends ConsumerWidget {
   const _StalledReminderSelector();
 
   static String _label(int days) => switch (days) {
-        7 => '1 semana',
-        14 => '2 semanas',
-        _ => '1 mes',
+        7 => tr('stalled.opt.1week'),
+        14 => tr('stalled.opt.2weeks'),
+        _ => tr('stalled.opt.1month'),
       };
 
   @override
@@ -1191,7 +1298,7 @@ class _StalledReminderSelector extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Avisarme de lo que dejo a medias',
+                        tr('stalled.setting.title'),
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -1201,8 +1308,8 @@ class _StalledReminderSelector extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Text(
                         enabled && stalled.isNotEmpty
-                            ? '${stalled.length} ${stalled.length == 1 ? 'título parado' : 'títulos parados'} ahora mismo'
-                            : 'Un recordatorio si no retomas algo que empezaste',
+                            ? trn('stalled.setting.nowStalled', stalled.length)
+                            : tr('stalled.setting.subtitleOff'),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
@@ -1229,7 +1336,7 @@ class _StalledReminderSelector extends ConsumerWidget {
             if (enabled) ...[
               const SizedBox(height: 14),
               Text(
-                'Tras cuánto tiempo sin tocarlo',
+                tr('stalled.setting.afterHowLong'),
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   color: AppColors.textMuted,
@@ -1301,7 +1408,7 @@ class _AutoBackupSelector extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Copias automáticas',
+                        tr('autobackup.title'),
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -1311,8 +1418,12 @@ class _AutoBackupSelector extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Text(
                         enabled && lastRun != null
-                            ? 'Última: ${formatRelative(lastRun)}'
-                            : 'Guarda ${AutoBackupService.keepCount} copias dentro del móvil',
+                            ? tr('autobackup.last', {
+                                'when': formatRelative(lastRun),
+                              })
+                            : tr('autobackup.keeps', {
+                                'n': AutoBackupService.keepCount,
+                              }),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
@@ -1361,7 +1472,7 @@ class _AutoBackupSelector extends ConsumerWidget {
                     ),
                   ),
                   icon: const Icon(Icons.history, size: 18),
-                  label: const Text('Ver copias y restaurar'),
+                  label: Text(tr('autobackup.viewRestore')),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.secondary,
                     padding: const EdgeInsets.symmetric(horizontal: 8),

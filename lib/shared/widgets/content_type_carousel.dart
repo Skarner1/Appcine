@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../data/models/content_item.dart';
 import 'genre_chip.dart';
 
@@ -112,7 +113,7 @@ class ContentTypeCarousel extends StatelessWidget {
       options: [
         if (includeAll)
           ChipCarouselOption(
-            label: 'Todo',
+            label: tr('type.all'),
             selected: selected == null,
             onTap: enabled ? () => onSelect(null) : null,
           ),

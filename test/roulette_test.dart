@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:cineapp/core/l10n/app_language.dart';
+import 'package:cineapp/core/l10n/strings.dart';
 import 'package:cineapp/core/theme/app_theme.dart';
 import 'package:cineapp/data/models/content_item.dart';
 import 'package:cineapp/data/repositories/content_repository.dart';
@@ -50,6 +52,10 @@ class _FakeRepo implements ContentRepository {
 }
 
 void main() {
+  // La app arranca en inglés por defecto; los tests afirman los textos en
+  // español, así que fijamos el idioma antes de construir cualquier widget.
+  S.setLanguage(AppLanguage.es);
+
   group('rouletteCandidates', () {
     final catalog = [
       _item(id: '1', title: 'Peli corta', duration: 50),

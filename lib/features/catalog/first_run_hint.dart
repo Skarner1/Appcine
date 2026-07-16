@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/providers.dart';
 
@@ -94,8 +95,8 @@ class FirstRunHint extends StatelessWidget {
                   children: [
                     Text(
                       online
-                          ? '¡Bienvenido a CineLog!'
-                          : 'Estás sin conexión',
+                          ? tr('hint.welcomeTitle')
+                          : tr('hint.offlineTitle'),
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -104,13 +105,7 @@ class FirstRunHint extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      online
-                          ? 'Pincha arriba en 🔍 para agregar pelis, series, '
-                              'animes, mangas o libros buscándolos en internet: '
-                              'se traen con su portada y su info.'
-                          : 'Para buscar en internet necesitas red. Puedes '
-                              'agregar lo que quieras a mano ahora mismo y '
-                              'traerle la portada desde internet más tarde.',
+                      online ? tr('hint.onlineMsg') : tr('hint.offlineMsg'),
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         height: 1.45,
@@ -124,7 +119,7 @@ class FirstRunHint extends StatelessWidget {
                 onPressed: onDismiss,
                 icon: const Icon(Icons.close, size: 18),
                 color: AppColors.textMuted,
-                tooltip: 'Entendido',
+                tooltip: tr('hint.gotIt'),
                 visualDensity: VisualDensity.compact,
               ),
             ],
@@ -139,7 +134,7 @@ class FirstRunHint extends StatelessWidget {
                 size: 18,
               ),
               label: Text(
-                online ? 'Buscar en internet' : 'Agregar a mano',
+                online ? tr('catalog.searchOnline') : tr('hint.addManually'),
               ),
               style: TextButton.styleFrom(
                 foregroundColor: accent,

@@ -1,17 +1,11 @@
+import '../../core/l10n/strings.dart';
 import '../../data/models/content_item.dart';
 
 /// Cómo ordenar el catálogo.
 enum CatalogSort { relevance, title, rating, duration, added, watched }
 
 extension CatalogSortX on CatalogSort {
-  String get label => switch (this) {
-        CatalogSort.relevance => 'Relevancia',
-        CatalogSort.title => 'Título',
-        CatalogSort.rating => 'Mi nota',
-        CatalogSort.duration => 'Duración',
-        CatalogSort.added => 'Añadido',
-        CatalogSort.watched => 'Visto',
-      };
+  String get label => tr('sort.$name');
 }
 
 const _accented = 'áàäâãéèëêíìïîóòöôõúùüûñç';

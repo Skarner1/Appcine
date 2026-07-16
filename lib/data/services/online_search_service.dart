@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
+import '../../core/l10n/strings.dart';
 import '../models/content_item.dart';
 import '../models/online_result.dart';
 
@@ -52,13 +53,9 @@ class OnlineSearchService {
     } on OnlineSearchException {
       rethrow;
     } on TimeoutException {
-      throw const OnlineSearchException(
-        'La búsqueda tardó demasiado. Revisa tu conexión e inténtalo de nuevo.',
-      );
+      throw OnlineSearchException(tr('search.err.timeout'));
     } catch (_) {
-      throw const OnlineSearchException(
-        'No se pudo conectar. Comprueba tu conexión a internet.',
-      );
+      throw OnlineSearchException(tr('search.err.noConnection'));
     }
   }
 
@@ -98,7 +95,7 @@ class OnlineSearchService {
     }).timeout(_timeout);
     if (res.statusCode != 200) {
       throw OnlineSearchException(
-        'El servicio respondió con un error (${res.statusCode}).',
+        tr('search.err.service', {'code': res.statusCode}),
       );
     }
     return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
@@ -139,7 +136,7 @@ class OnlineSearchService {
     }).timeout(_timeout);
     if (res.statusCode != 200) {
       throw OnlineSearchException(
-        'El servicio respondió con un error (${res.statusCode}).',
+        tr('search.err.service', {'code': res.statusCode}),
       );
     }
     final list = json.decode(utf8.decode(res.bodyBytes)) as List;
@@ -212,7 +209,7 @@ query ($s: String, $t: MediaType) {
         .timeout(_timeout);
     if (res.statusCode != 200) {
       throw OnlineSearchException(
-        'El servicio respondió con un error (${res.statusCode}).',
+        tr('search.err.service', {'code': res.statusCode}),
       );
     }
     final data = json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
@@ -298,7 +295,7 @@ query ($s: String, $t: MediaType) {
         // Open Library no da sinopsis en la búsqueda; el autor es lo que de
         // verdad distingue dos libros con el mismo título.
         overview: (authors != null && authors.isNotEmpty)
-            ? 'De ${authors.take(3).join(', ')}'
+            ? tr('search.byAuthors', {'authors': authors.take(3).join(', ')})
             : null,
         genres: mapGenres(subjects),
         releaseDate: year == null ? null : DateTime(year),

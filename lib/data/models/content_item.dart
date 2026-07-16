@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import 'watch_event.dart';
 
@@ -21,25 +22,9 @@ enum WatchStatus {
 enum ContentSource { own, friendRecommended, trending, algorithm }
 
 extension ContentTypeX on ContentType {
-  String get label => switch (this) {
-        ContentType.movie => 'Película',
-        ContentType.series => 'Serie',
-        ContentType.documentary => 'Documental',
-        ContentType.anime => 'Anime',
-        ContentType.shortFilm => 'Cortometraje',
-        ContentType.book => 'Libro',
-        ContentType.manga => 'Manga',
-      };
+  String get label => tr('type.$name');
 
-  String get pluralLabel => switch (this) {
-        ContentType.movie => 'Películas',
-        ContentType.series => 'Series',
-        ContentType.documentary => 'Documentales',
-        ContentType.anime => 'Animes',
-        ContentType.shortFilm => 'Cortos',
-        ContentType.book => 'Libros',
-        ContentType.manga => 'Mangas',
-      };
+  String get pluralLabel => tr('type.$name.plural');
 
   String get emoji => switch (this) {
         ContentType.movie => '🎬',
@@ -73,13 +58,13 @@ extension ContentTypeX on ContentType {
 
   /// Cómo se llama cada parte en este tipo. Un manga tiene tomos, no episodios.
   String get unitLabel => switch (this) {
-        ContentType.book || ContentType.manga => 'tomo',
-        _ => 'episodio',
+        ContentType.book || ContentType.manga => tr('unit.volume'),
+        _ => tr('unit.episode'),
       };
 
   String get unitsLabel => switch (this) {
-        ContentType.book || ContentType.manga => 'tomos',
-        _ => 'episodios',
+        ContentType.book || ContentType.manga => tr('unit.volumes'),
+        _ => tr('unit.episodes'),
       };
 
   /// Lo que se lee no se "ve". Cambia los verbos de la interfaz.
@@ -87,14 +72,7 @@ extension ContentTypeX on ContentType {
 }
 
 extension WatchStatusX on WatchStatus {
-  String get label => switch (this) {
-        WatchStatus.notStarted => 'Falta ver',
-        WatchStatus.watching => 'Viendo',
-        WatchStatus.completed => 'Visto',
-        WatchStatus.onHold => 'Pausada',
-        WatchStatus.dropped => 'Abandonada',
-        WatchStatus.rewatchPending => 'Volver a ver',
-      };
+  String get label => tr('status.$name');
 
   Color get color => switch (this) {
         WatchStatus.notStarted => AppColors.warning,
@@ -116,12 +94,7 @@ extension WatchStatusX on WatchStatus {
 }
 
 extension ContentSourceX on ContentSource {
-  String get label => switch (this) {
-        ContentSource.own => 'Propio',
-        ContentSource.friendRecommended => 'Recomendado por amigo',
-        ContentSource.trending => 'Tendencia',
-        ContentSource.algorithm => 'Sugerencia del sistema',
-      };
+  String get label => tr('source.$name');
 }
 
 /// Elemento del catálogo: película, serie, documental, anime o corto.

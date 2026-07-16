@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/widgets/custom_bottom_sheet.dart';
 import 'collections_provider.dart';
@@ -15,7 +16,7 @@ Future<void> showItemCollectionsSheet({
 }) {
   return showAppBottomSheet<void>(
     context: context,
-    title: 'Guardar en colección',
+    title: tr('coll.save.title'),
     builder: (context, controller) =>
         _ItemCollectionsList(itemId: itemId, controller: controller),
   );
@@ -62,7 +63,7 @@ class _ItemCollectionsList extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Text(
-              'Aún no tienes colecciones. Crea la primera arriba.',
+              tr('coll.save.empty'),
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 13,
@@ -99,7 +100,7 @@ class _CreateTile extends StatelessWidget {
               const Icon(Icons.add, color: AppColors.primary),
               const SizedBox(width: 12),
               Text(
-                'Crear nueva colección',
+                tr('coll.save.createNew'),
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -168,7 +169,7 @@ class _CollectionCheck extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '$count ${count == 1 ? 'título' : 'títulos'}',
+                      trn('count.titles', count),
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppColors.textSecondary,

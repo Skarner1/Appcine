@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/collection.dart';
 import '../../data/models/content_item.dart';
@@ -21,13 +22,13 @@ class CollectionsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Colecciones')),
+      appBar: AppBar(title: Text(tr('coll.title'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _create(context, ref),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: Colors.white),
         label: Text(
-          'Nueva',
+          tr('coll.new'),
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             color: Colors.white,
@@ -37,10 +38,9 @@ class CollectionsScreen extends ConsumerWidget {
       body: collections.isEmpty
           ? EmptyState(
               icon: Icons.collections_bookmark_outlined,
-              title: 'Sin colecciones',
-              message:
-                  'Crea listas propias como "Halloween" o "Para ver en pareja" y organiza tu catálogo a tu manera.',
-              actionLabel: 'Crear colección',
+              title: tr('coll.empty.title'),
+              message: tr('coll.empty.message'),
+              actionLabel: tr('coll.empty.action'),
               onAction: () => _create(context, ref),
             )
           : ListView.separated(
@@ -134,7 +134,7 @@ class _CollectionTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${collection.itemIds.length} ${collection.itemIds.length == 1 ? 'título' : 'títulos'}',
+                      trn('count.titles', collection.itemIds.length),
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: AppColors.textSecondary,
@@ -262,7 +262,7 @@ class _CollectionEditorDialogState extends State<_CollectionEditorDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              isEditing ? 'Editar colección' : 'Nueva colección',
+              tr(isEditing ? 'coll.editor.editTitle' : 'coll.editor.newTitle'),
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -279,14 +279,14 @@ class _CollectionEditorDialogState extends State<_CollectionEditorDialog> {
                 fontSize: 14,
                 color: AppColors.textPrimary,
               ),
-              decoration: const InputDecoration(
-                hintText: 'Ej. Halloween, Para ver en pareja…',
+              decoration: InputDecoration(
+                hintText: tr('coll.editor.nameHint'),
               ),
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 18),
             Text(
-              'Color',
+              tr('coll.editor.color'),
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -311,14 +311,14 @@ class _CollectionEditorDialogState extends State<_CollectionEditorDialog> {
               children: [
                 Expanded(
                   child: SecondaryButton(
-                    label: 'Cancelar',
+                    label: tr('common.cancel'),
                     onTap: () => Navigator.of(context).pop(),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: PrimaryButton(
-                    label: isEditing ? 'Guardar' : 'Crear',
+                    label: tr(isEditing ? 'common.save' : 'coll.editor.create'),
                     onTap: _submit,
                   ),
                 ),

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/l10n/strings.dart';
 import '../models/content_item.dart';
 import 'backup_service.dart';
 
@@ -11,8 +12,8 @@ enum BackupFrequency { daily, weekly }
 
 extension BackupFrequencyX on BackupFrequency {
   String get label => switch (this) {
-        BackupFrequency.daily => 'A diario',
-        BackupFrequency.weekly => 'Semanal',
+        BackupFrequency.daily => tr('freq.daily'),
+        BackupFrequency.weekly => tr('freq.weekly'),
       };
 
   Duration get interval => switch (this) {

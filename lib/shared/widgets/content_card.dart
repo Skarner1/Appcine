@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
@@ -173,7 +174,7 @@ class ContentCard extends StatelessWidget {
     if (item.type.hasEpisodes) {
       final episodes = item.episodes;
       if (episodes == null) return item.type.label;
-      return '$episodes ep · ${formatDuration(item.durationMinutes)}';
+      return '$episodes ${tr('abbr.ep')} · ${formatDuration(item.durationMinutes)}';
     }
     return formatDuration(item.durationMinutes);
   }

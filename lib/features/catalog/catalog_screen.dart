@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/content_item.dart';
 import '../../providers/providers.dart';
@@ -91,7 +92,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                               ),
                             ),
                             Text(
-                              'Tu catálogo personal de cine y series',
+                              tr('catalog.subtitle'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.inter(
@@ -105,7 +106,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                       const SizedBox(width: 12),
                       _HeaderIconButton(
                         icon: Icons.travel_explore_rounded,
-                        tooltip: 'Buscar en internet',
+                        tooltip: tr('catalog.searchOnline'),
                         highlighted: true,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
@@ -116,7 +117,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                       const SizedBox(width: 10),
                       _HeaderIconButton(
                         icon: Icons.collections_bookmark_outlined,
-                        tooltip: 'Colecciones',
+                        tooltip: tr('catalog.collections'),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const CollectionsScreen(),
@@ -139,7 +140,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                         color: AppColors.textPrimary,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Buscar por título, género o tus notas…',
+                        hintText: tr('catalog.searchHint'),
                         prefixIcon: Icon(
                           Icons.search,
                           color: AppColors.textMuted,
@@ -214,8 +215,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               hasScrollBody: false,
               child: EmptyState(
                 icon: Icons.error_outline,
-                title: 'Algo salió mal',
-                message: 'No pudimos cargar tu catálogo: $error',
+                title: tr('common.error.title'),
+                message: tr('catalog.loadError', {'error': error}),
               ),
             ),
             data: (_) => items.isEmpty
@@ -226,13 +227,14 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           ? Icons.search_off_rounded
                           : Icons.movie_filter_outlined,
                       title: filter.hasActiveFilters
-                          ? 'Sin resultados'
-                          : 'Tu catálogo está vacío',
+                          ? tr('catalog.empty.noResultsTitle')
+                          : tr('catalog.empty.title'),
                       message: filter.hasActiveFilters
-                          ? 'Prueba con otros filtros o términos de búsqueda.'
-                          : 'Agrega tu primera película o serie y empieza a organizar tu cine.',
-                      actionLabel:
-                          filter.hasActiveFilters ? null : 'Agregar contenido',
+                          ? tr('catalog.empty.noResultsMsg')
+                          : tr('catalog.empty.msg'),
+                      actionLabel: filter.hasActiveFilters
+                          ? null
+                          : tr('action.addContent'),
                       onAction: filter.hasActiveFilters
                           ? null
                           : () => _openForm(context),
@@ -287,7 +289,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   void _openFiltersSheet(BuildContext context) {
     showAppBottomSheet<void>(
       context: context,
-      title: 'Filtros',
+      title: tr('filters.title'),
       builder: (sheetContext, controller) {
         // Se lee dentro del builder para que la hoja se repinte al elegir sin
         // tener que cerrarla y volver a abrirla.
@@ -298,14 +300,15 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
             // Sin búsqueda escrita, "Relevancia" no ordena por nada: se llama
             // por lo que hace de verdad, enseñar lo último que añadiste.
-            final relevanceLabel =
-                filter.query.trim().isEmpty ? 'Más reciente' : 'Relevancia';
+            final relevanceLabel = filter.query.trim().isEmpty
+                ? tr('sort.recent')
+                : tr('sort.relevance');
 
             return ListView(
               controller: controller,
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               children: [
-                _sheetSection('Ordenar por'),
+                _sheetSection(tr('filters.sortBy')),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
@@ -321,19 +324,19 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                _sheetSection('Género'),
+                _sheetSection(tr('filters.genre')),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: [
                     GenreChip(
-                      label: 'Todos',
+                      label: tr('filters.all'),
                       selected: filter.genre == null,
                       onTap: () => notifier.setGenre(null),
                     ),
                     for (final genre in kGenres)
                       GenreChip(
-                        label: genre,
+                        label: localizedGenre(genre),
                         selected: filter.genre == genre,
                         onTap: () => notifier
                             .setGenre(filter.genre == genre ? null : genre),
@@ -342,7 +345,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 ),
                 const SizedBox(height: 24),
                 SecondaryButton(
-                  label: 'Ver resultados',
+                  label: tr('filters.seeResults'),
                   isFullWidth: true,
                   onTap: () => Navigator.of(sheetContext).pop(),
                 ),
@@ -457,7 +460,7 @@ class _FilterBar extends ConsumerWidget {
                 children: [
                   _FilterButton(
                     icon: Icons.tune,
-                    label: 'Filtros',
+                    label: tr('filters.title'),
                     badge: _hiddenCount,
                     onTap: onOpenFilters,
                   ),
@@ -466,7 +469,7 @@ class _FilterBar extends ConsumerWidget {
                     icon: filter.onlyFavorites
                         ? Icons.favorite_rounded
                         : Icons.favorite_outline_rounded,
-                    label: 'Favoritos',
+                    label: tr('filters.favorites'),
                     active: filter.onlyFavorites,
                     onTap: notifier.toggleFavorites,
                   ),
@@ -480,7 +483,7 @@ class _FilterBar extends ConsumerWidget {
                   children: [
                     if (filter.genre != null)
                       _ActiveFilterChip(
-                        label: filter.genre!,
+                        label: localizedGenre(filter.genre!),
                         onRemove: () => notifier.setGenre(null),
                       ),
                     if (filter.sort != CatalogSort.relevance)

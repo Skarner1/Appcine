@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/services/poster_store.dart';
 import 'app_buttons.dart';
@@ -41,7 +42,7 @@ Future<String?> askPosterUrl(BuildContext context, {String? current}) async {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'URL del póster',
+              tr('poster.urlTitle'),
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -65,14 +66,14 @@ Future<String?> askPosterUrl(BuildContext context, {String? current}) async {
               children: [
                 Expanded(
                   child: SecondaryButton(
-                    label: 'Cancelar',
+                    label: tr('common.cancel'),
                     onTap: () => Navigator.of(context).pop(),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: PrimaryButton(
-                    label: 'Usar',
+                    label: tr('poster.use'),
                     onTap: () =>
                         Navigator.of(context).pop(controller.text.trim()),
                   ),
@@ -105,7 +106,7 @@ Future<void> showPosterOptions(
 }) {
   return showAppBottomSheet<void>(
     context: context,
-    title: 'Imagen de portada',
+    title: tr('poster.sheetTitle'),
     builder: (sheetContext, controller) {
       final messenger = ScaffoldMessenger.of(context);
       return ListView(
@@ -115,7 +116,7 @@ Future<void> showPosterOptions(
           if (onSearchOnline != null) ...[
             _PosterOption(
               icon: Icons.travel_explore_rounded,
-              label: 'Buscar en internet',
+              label: tr('catalog.searchOnline'),
               color: AppColors.primary,
               onTap: () {
                 Navigator.of(sheetContext).pop();
@@ -126,7 +127,7 @@ Future<void> showPosterOptions(
           ],
           _PosterOption(
             icon: Icons.photo_library_outlined,
-            label: 'Elegir de la galería',
+            label: tr('poster.fromGallery'),
             onTap: () async {
               Navigator.of(sheetContext).pop();
               try {
@@ -134,7 +135,7 @@ Future<void> showPosterOptions(
                 if (path != null) onChanged(path);
               } catch (_) {
                 messenger.showSnackBar(
-                  const SnackBar(content: Text('No se pudo cargar la imagen.')),
+                  SnackBar(content: Text(tr('poster.loadFailed'))),
                 );
               }
             },
@@ -142,7 +143,7 @@ Future<void> showPosterOptions(
           const SizedBox(height: 12),
           _PosterOption(
             icon: Icons.link,
-            label: 'Usar URL de imagen',
+            label: tr('poster.useUrl'),
             onTap: () async {
               Navigator.of(sheetContext).pop();
               if (!context.mounted) return;
@@ -158,7 +159,7 @@ Future<void> showPosterOptions(
             const SizedBox(height: 12),
             _PosterOption(
               icon: Icons.delete_outline,
-              label: 'Quitar portada',
+              label: tr('poster.remove'),
               color: AppColors.error,
               onTap: () {
                 Navigator.of(sheetContext).pop();

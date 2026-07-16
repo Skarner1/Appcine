@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_buttons.dart';
 
@@ -10,11 +11,13 @@ Future<bool> showAppConfirmDialog({
   required BuildContext context,
   required String title,
   required String message,
-  String confirmLabel = 'Confirmar',
-  String cancelLabel = 'Cancelar',
+  String? confirmLabel,
+  String? cancelLabel,
   IconData icon = Icons.help_outline_rounded,
   Color accent = AppColors.primary,
 }) async {
+  final resolvedConfirm = confirmLabel ?? tr('common.confirm');
+  final resolvedCancel = cancelLabel ?? tr('common.cancel');
   final result = await showDialog<bool>(
     context: context,
     builder: (context) => Dialog(
@@ -65,14 +68,14 @@ Future<bool> showAppConfirmDialog({
               children: [
                 Expanded(
                   child: SecondaryButton(
-                    label: cancelLabel,
+                    label: resolvedCancel,
                     onTap: () => Navigator.of(context).pop(false),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: PrimaryButton(
-                    label: confirmLabel,
+                    label: resolvedConfirm,
                     color: accent,
                     onTap: () => Navigator.of(context).pop(true),
                   ),

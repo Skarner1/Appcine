@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 
+import '../core/l10n/app_language.dart';
+import '../core/l10n/strings.dart';
 import '../core/services/notification_service.dart';
 import '../data/models/content_item.dart';
 import '../data/repositories/content_repository.dart';
@@ -131,9 +133,9 @@ enum WatchlistTab { pending, rewatch, seen }
 
 extension WatchlistTabX on WatchlistTab {
   String get label => switch (this) {
-        WatchlistTab.pending => 'Falta Ver',
-        WatchlistTab.rewatch => 'Volver a Ver',
-        WatchlistTab.seen => 'Vistos',
+        WatchlistTab.pending => tr('watchlist.tab.pending'),
+        WatchlistTab.rewatch => tr('watchlist.tab.rewatch'),
+        WatchlistTab.seen => tr('watchlist.tab.seen'),
       };
 }
 
@@ -189,9 +191,9 @@ enum RecommendationTab { friends, system, trending }
 
 extension RecommendationTabX on RecommendationTab {
   String get label => switch (this) {
-        RecommendationTab.friends => 'Amigos',
-        RecommendationTab.system => 'Sistema',
-        RecommendationTab.trending => 'Tendencias',
+        RecommendationTab.friends => tr('rec.tab.friends'),
+        RecommendationTab.system => tr('rec.tab.system'),
+        RecommendationTab.trending => tr('rec.tab.trending'),
       };
 }
 
@@ -321,7 +323,7 @@ class ProfileNameNotifier extends Notifier<String> {
   @override
   String build() {
     final box = ref.watch(settingsBoxProvider);
-    return box.get(_key, defaultValue: 'Cinéfilo') as String;
+    return box.get(_key) as String? ?? tr('profile.defaultName');
   }
 
   Future<void> setName(String name) async {
@@ -365,6 +367,40 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
 
 final themeModeProvider =
     NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
+
+// ---------------------------------------------------------------------------
+// Idioma de la app
+// ---------------------------------------------------------------------------
+
+/// Idioma elegido por el usuario. Se persiste en el box de ajustes con la clave
+/// `app_language` guardando el código ('en', 'es', 'ko', ...). Si no hay nada
+/// guardado, se resuelve según el idioma del dispositivo (ver
+/// [AppLanguage.resolveInitial]). Al cambiar, actualiza el holder estático [S]
+/// para que los textos fuera de widgets también cambien.
+class LocaleNotifier extends Notifier<AppLanguage> {
+  static const _key = 'app_language';
+
+  @override
+  AppLanguage build() {
+    final stored = ref.watch(settingsBoxProvider).get(_key) as String?;
+    final lang = AppLanguage.resolveInitial(
+      stored,
+      WidgetsBinding.instance.platformDispatcher.locale,
+    );
+    S.setLanguage(lang);
+    return lang;
+  }
+
+  Future<void> setLanguage(AppLanguage lang) async {
+    if (lang == state) return;
+    await ref.read(settingsBoxProvider).put(_key, lang.code);
+    S.setLanguage(lang);
+    state = lang;
+  }
+}
+
+final localeProvider =
+    NotifierProvider<LocaleNotifier, AppLanguage>(LocaleNotifier.new);
 
 // ---------------------------------------------------------------------------
 // Recordatorios de lo que dejaste a medias

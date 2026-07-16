@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
@@ -141,7 +142,15 @@ class HorizontalContentCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Ep. ${item.currentEpisode}/${item.episodes}',
+                            item.type.isRead
+                                ? tr('card.volProgress', {
+                                    'cur': item.currentEpisode,
+                                    'total': item.episodes,
+                                  })
+                                : tr('card.epProgress', {
+                                    'cur': item.currentEpisode,
+                                    'total': item.episodes,
+                                  }),
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               color: AppColors.textMuted,
@@ -203,7 +212,7 @@ class HorizontalContentCard extends StatelessWidget {
         parts.add('${item.episodes} ${item.type.unitsLabel}');
       }
       if (item.durationMinutes > 0) {
-        final unit = item.type.isRead ? 'tomo' : 'ep';
+        final unit = item.type.isRead ? tr('unit.volume') : tr('abbr.ep');
         parts.add('${formatDuration(item.durationMinutes)}/$unit');
       }
     } else if (item.durationMinutes > 0) {

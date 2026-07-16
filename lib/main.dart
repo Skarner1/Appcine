@@ -5,6 +5,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
 import 'app.dart';
+import 'core/l10n/app_language.dart';
+import 'core/l10n/strings.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_colors.dart';
 import 'data/migrations.dart';
@@ -59,9 +61,20 @@ Future<void> main() async {
   };
   AppColors.setBrightness(startsDark ? Brightness.dark : Brightness.light);
 
-  // Fechas en español.
-  await initializeDateFormatting('es');
-  Intl.defaultLocale = 'es';
+  // Idioma inicial: el guardado, o el del dispositivo si está soportado, o
+  // inglés. Se fija antes del primer frame para evitar parpadeo de textos.
+  final storedLang = settingsBox.get('app_language') as String?;
+  final language = AppLanguage.resolveInitial(
+    storedLang,
+    WidgetsBinding.instance.platformDispatcher.locale,
+  );
+  S.setLanguage(language);
+
+  // Formateo de fechas para todos los idiomas soportados + el activo por defecto.
+  for (final l in AppLanguage.values) {
+    await initializeDateFormatting(l.code);
+  }
+  Intl.defaultLocale = language.code;
 
   // Notificaciones locales (no debe bloquear el arranque si falla).
   try {

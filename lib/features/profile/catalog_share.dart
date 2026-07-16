@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/content_item.dart';
 import '../../shared/widgets/poster_image.dart';
@@ -22,13 +23,19 @@ const _kDataMarker = 'CINELOG_DATA:';
 /// estado. Al final incrusta un bloque de datos base64 para poder reimportarlo.
 String buildCatalogText(String name, List<ContentItem> items) {
   final b = StringBuffer();
-  final who = name.trim().isEmpty ? 'Mi catálogo' : 'Catálogo de ${name.trim()}';
+  final who = name.trim().isEmpty
+      ? tr('share.myCatalog')
+      : tr('share.catalogOf', {'name': name.trim()});
   final completed =
       items.where((i) => i.status == WatchStatus.completed).length;
   final pending = items.length - completed;
 
   b.writeln('🎬 $who — CineLog Pro');
-  b.writeln('${items.length} títulos · $completed vistos · $pending por ver');
+  b.writeln(tr('share.textStats', {
+    'total': items.length,
+    'seen': completed,
+    'pending': pending,
+  }));
   b.writeln();
 
   void section(String header, Iterable<ContentItem> list) {
@@ -37,15 +44,17 @@ String buildCatalogText(String name, List<ContentItem> items) {
     b.writeln('$header (${l.length})');
     for (final i in l) {
       final parts = <String>[i.type.label];
-      if (i.genres.isNotEmpty) parts.add(i.genres.take(2).join(', '));
+      if (i.genres.isNotEmpty) {
+        parts.add(i.genres.take(2).map(localizedGenre).join(', '));
+      }
       if (i.type.hasEpisodes && i.episodes != null) {
-        parts.add('${i.episodes} ep');
+        parts.add('${i.episodes} ${tr('abbr.ep')}');
       }
       final extras = <String>[];
       if (i.userRating != null) {
         extras.add('⭐ ${i.userRating!.toStringAsFixed(1)}');
       }
-      if (i.isFavorite) extras.add('❤ favorita');
+      if (i.isFavorite) extras.add(tr('share.favorite'));
       final extra = extras.isEmpty ? '' : ' · ${extras.join(' · ')}';
       b.writeln('• ${i.title} (${parts.join(' · ')})$extra');
       final note = i.personalNote?.trim();
@@ -57,26 +66,26 @@ String buildCatalogText(String name, List<ContentItem> items) {
   }
 
   section(
-    '⏳ POR VER',
+    tr('share.section.pending'),
     items.where((i) =>
         i.status == WatchStatus.notStarted ||
         i.status == WatchStatus.watching ||
         i.status == WatchStatus.onHold),
   );
-  section('🔁 VOLVER A VER',
+  section(tr('share.section.rewatch'),
       items.where((i) => i.status == WatchStatus.rewatchPending));
-  section(
-      '✅ VISTOS', items.where((i) => i.status == WatchStatus.completed));
-  section('🚫 ABANDONADAS',
+  section(tr('share.section.seen'),
+      items.where((i) => i.status == WatchStatus.completed));
+  section(tr('share.section.dropped'),
       items.where((i) => i.status == WatchStatus.dropped));
 
-  b.writeln('Compartido desde CineLog Pro 🍿');
+  b.writeln(tr('detail.share.footer'));
 
   // Bloque de datos oculto (una sola línea) para poder reimportar el catálogo.
   final data = jsonEncode(items.map((e) => e.toJson()).toList());
   final encoded = base64.encode(utf8.encode(data));
   b.writeln();
-  b.writeln('——— No borres la línea de abajo si quieres reimportarlo ———');
+  b.writeln(tr('share.dataLineNote'));
   b.write('$_kDataMarker$encoded');
 
   return b.toString();
@@ -113,7 +122,7 @@ Future<void> shareCatalogAsText(String name, List<ContentItem> items) {
   return SharePlus.instance.share(
     ShareParams(
       text: buildCatalogText(name, items),
-      subject: 'Mi catálogo CineLog Pro',
+      subject: tr('share.subject'),
     ),
   );
 }
@@ -185,13 +194,13 @@ class _CatalogImagePreviewScreenState extends State<CatalogImagePreviewScreen> {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'image/png')],
-          subject: 'Mi catálogo CineLog Pro',
-          text: 'Te comparto mi catálogo de CineLog Pro 🍿',
+          subject: tr('share.subject'),
+          text: tr('share.imageText'),
         ),
       );
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('No se pudo generar la imagen.')),
+        SnackBar(content: Text(tr('share.imageFailed'))),
       );
     } finally {
       if (mounted) setState(() => _sharing = false);
@@ -201,7 +210,7 @@ class _CatalogImagePreviewScreenState extends State<CatalogImagePreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Vista previa')),
+      appBar: AppBar(title: Text(tr('share.previewTitle'))),
       body: SafeArea(
         child: Column(
           children: [
@@ -247,7 +256,7 @@ class _CatalogImagePreviewScreenState extends State<CatalogImagePreviewScreen> {
                         )
                       : const Icon(Icons.ios_share_outlined, size: 20),
                   label: Text(
-                    _ready ? 'Compartir imagen' : 'Preparando…',
+                    tr(_ready ? 'share.shareImage' : 'share.preparing'),
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -282,7 +291,7 @@ class _CatalogCard extends StatelessWidget {
         items.where((i) => i.status == WatchStatus.completed).length;
     final pending = total - completed;
     final remaining = total - shown.length;
-    final who = userName.trim().isEmpty ? 'Mi catálogo' : userName.trim();
+    final who = userName.trim().isEmpty ? tr('share.myCatalog') : userName.trim();
 
     return Container(
       width: 380,
@@ -317,7 +326,7 @@ class _CatalogCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Catálogo de CineLog Pro',
+                      tr('share.cardSubtitle'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
@@ -333,11 +342,11 @@ class _CatalogCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              _statChip('$total', 'títulos', AppColors.primary),
+              _statChip('$total', tr('share.stat.titles'), AppColors.primary),
               const SizedBox(width: 8),
-              _statChip('$pending', 'por ver', AppColors.warning),
+              _statChip('$pending', tr('share.stat.pending'), AppColors.warning),
               const SizedBox(width: 8),
-              _statChip('$completed', 'vistos', AppColors.success),
+              _statChip('$completed', tr('share.stat.seen'), AppColors.success),
             ],
           ),
           const SizedBox(height: 20),
@@ -377,7 +386,7 @@ class _CatalogCard extends StatelessWidget {
           if (remaining > 0) ...[
             const SizedBox(height: 12),
             Text(
-              'y $remaining título${remaining == 1 ? '' : 's'} más…',
+              trn('share.andMore', remaining),
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontStyle: FontStyle.italic,

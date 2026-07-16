@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
@@ -52,40 +53,39 @@ class NotificationsScreen extends ConsumerWidget {
     final isEmpty = scheduled.isEmpty && past.isEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notificaciones')),
+      appBar: AppBar(title: Text(tr('notif.screenTitle'))),
       body: SafeArea(
         child: isEmpty
-            ? const EmptyState(
+            ? EmptyState(
                 icon: Icons.notifications_none_rounded,
-                title: 'Todo tranquilo por aquí',
-                message:
-                    'Programa recordatorios desde el detalle de cualquier película o serie y aparecerán en esta lista.',
+                title: tr('notif.empty.title'),
+                message: tr('notif.empty.message'),
               )
             : ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
                   if (todayItems.isNotEmpty) ...[
-                    const _GroupHeader(label: 'Hoy'),
+                    _GroupHeader(label: tr('notif.group.today')),
                     for (final item in todayItems)
                       _NotificationCard(item: item, highlight: true),
                   ],
                   if (weekItems.isNotEmpty) ...[
-                    const _GroupHeader(label: 'Próximos 7 días'),
+                    _GroupHeader(label: tr('notif.group.next7')),
                     for (final item in weekItems)
                       _NotificationCard(item: item),
                   ],
                   if (monthItems.isNotEmpty) ...[
-                    const _GroupHeader(label: 'Próximos 30 días'),
+                    _GroupHeader(label: tr('notif.group.next30')),
                     for (final item in monthItems)
                       _NotificationCard(item: item),
                   ],
                   if (laterItems.isNotEmpty) ...[
-                    const _GroupHeader(label: 'Más adelante'),
+                    _GroupHeader(label: tr('notif.group.later')),
                     for (final item in laterItems)
                       _NotificationCard(item: item),
                   ],
                   if (past.isNotEmpty) ...[
-                    const _GroupHeader(label: 'Pasadas'),
+                    _GroupHeader(label: tr('notif.group.past')),
                     for (final item in past.take(10)) _PastTile(item: item),
                   ],
                 ],
@@ -184,7 +184,7 @@ class _NotificationCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Programado: ${formatDateTime(date)}',
+                      tr('notif.scheduledAt', {'date': formatDateTime(date)}),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
@@ -209,7 +209,7 @@ class _NotificationCard extends ConsumerWidget {
             children: [
               _ActionChip(
                 icon: Icons.play_arrow_rounded,
-                label: 'Ver ahora',
+                label: tr('notif.action.watchNow'),
                 color: AppColors.success,
                 onTap: () async {
                   await actions.save(item.copyWith(
@@ -229,14 +229,14 @@ class _NotificationCard extends ConsumerWidget {
               ),
               _ActionChip(
                 icon: Icons.snooze,
-                label: 'Posponer 1h',
+                label: tr('notif.action.snooze'),
                 color: AppColors.secondary,
                 onTap: () async {
                   await actions.snooze(item);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Recordatorio pospuesto 1 hora'),
+                      SnackBar(
+                        content: Text(tr('notif.snoozed')),
                       ),
                     );
                   }
@@ -244,13 +244,13 @@ class _NotificationCard extends ConsumerWidget {
               ),
               _ActionChip(
                 icon: Icons.close,
-                label: 'Descartar',
+                label: tr('notif.action.dismiss'),
                 color: AppColors.error,
                 onTap: () async {
                   await actions.dismissNotification(item);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Recordatorio descartado')),
+                      SnackBar(content: Text(tr('notif.dismissed'))),
                     );
                   }
                 },
@@ -347,7 +347,7 @@ class _PastTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            'Visto el ${formatDate(item.watchDate!)}',
+            tr('notif.watchedOn', {'date': formatDate(item.watchDate!)}),
             style: GoogleFonts.inter(
               fontSize: 11.5,
               color: AppColors.textMuted,

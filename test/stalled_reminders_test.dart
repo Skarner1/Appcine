@@ -1,3 +1,5 @@
+import 'package:cineapp/core/l10n/app_language.dart';
+import 'package:cineapp/core/l10n/strings.dart';
 import 'package:cineapp/data/models/content_item.dart';
 import 'package:cineapp/data/models/watch_event.dart';
 import 'package:cineapp/features/reminders/stalled_reminders.dart';
@@ -31,6 +33,9 @@ ContentItem _item({
 }
 
 void main() {
+  // humanizeStalled devuelve texto localizado; los tests lo afirman en español.
+  S.setLanguage(AppLanguage.es);
+
   group('lastActivityOf', () {
     test('manda el último visionado del diario', () {
       final item = _item(

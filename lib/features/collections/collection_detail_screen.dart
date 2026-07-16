@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/collection.dart';
 import '../../data/models/content_item.dart';
@@ -62,12 +63,12 @@ class CollectionDetailScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            tooltip: 'Editar',
+            tooltip: tr('common.edit'),
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => _edit(context, ref, current),
           ),
           IconButton(
-            tooltip: 'Eliminar',
+            tooltip: tr('common.delete'),
             icon: const Icon(Icons.delete_outline),
             onPressed: () => _delete(context, ref, current),
           ),
@@ -78,7 +79,7 @@ class CollectionDetailScreen extends ConsumerWidget {
         backgroundColor: current.accent,
         icon: const Icon(Icons.playlist_add, color: Colors.white),
         label: Text(
-          'Añadir',
+          tr('coll.detail.add'),
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             color: Colors.white,
@@ -88,10 +89,9 @@ class CollectionDetailScreen extends ConsumerWidget {
       body: items.isEmpty
           ? EmptyState(
               icon: Icons.movie_filter_outlined,
-              title: 'Colección vacía',
-              message:
-                  'Añade títulos de tu catálogo para empezar a llenar "${current.name}".',
-              actionLabel: 'Añadir contenido',
+              title: tr('coll.detail.emptyTitle'),
+              message: tr('coll.detail.emptyMessage', {'name': current.name}),
+              actionLabel: tr('coll.detail.emptyAction'),
               onAction: () => _addItems(context, ref, collectionId),
             )
           : GridView.builder(
@@ -160,10 +160,9 @@ class CollectionDetailScreen extends ConsumerWidget {
   ) async {
     final confirmed = await showAppConfirmDialog(
       context: context,
-      title: '¿Eliminar "${current.name}"?',
-      message:
-          'Se borrará la colección. Tus títulos seguirán en el catálogo, solo se elimina la agrupación.',
-      confirmLabel: 'Eliminar',
+      title: tr('detail.delete.title', {'title': current.name}),
+      message: tr('coll.detail.deleteMessage'),
+      confirmLabel: tr('common.delete'),
       icon: Icons.delete_outline,
       accent: AppColors.error,
     );
@@ -175,7 +174,7 @@ class CollectionDetailScreen extends ConsumerWidget {
   void _addItems(BuildContext context, WidgetRef ref, String collectionId) {
     showAppBottomSheet<void>(
       context: context,
-      title: 'Añadir a la colección',
+      title: tr('coll.detail.addSheet'),
       initialSize: 0.75,
       builder: (context, controller) =>
           _AddItemsList(collectionId: collectionId, controller: controller),
@@ -228,7 +227,7 @@ class _AddItemsList extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Tu catálogo está vacío. Agrega contenido primero.',
+            tr('coll.detail.catalogEmpty'),
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary),
           ),

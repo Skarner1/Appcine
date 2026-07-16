@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/services/notification_service.dart';
 import '../../data/models/content_item.dart';
 import '../../providers/providers.dart';
@@ -77,15 +78,12 @@ List<StalledItem> findStalled(
 
 /// "3 semanas", "2 meses"... en el idioma en que hablaría una persona.
 String humanizeStalled(int days) {
-  if (days >= 365) {
-    final years = days ~/ 365;
-    return years == 1 ? 'un año' : '$years años';
-  }
-  if (days >= 60) return '${days ~/ 30} meses';
-  if (days >= 30) return 'un mes';
-  if (days >= 14) return '${days ~/ 7} semanas';
-  if (days >= 7) return 'una semana';
-  return '$days días';
+  if (days >= 365) return trn('dur.years', days ~/ 365);
+  if (days >= 60) return trn('dur.months', days ~/ 30);
+  if (days >= 30) return trn('dur.months', 1);
+  if (days >= 14) return trn('dur.weeks', days ~/ 7);
+  if (days >= 7) return trn('dur.weeks', 1);
+  return trn('dur.days', days);
 }
 
 /// Cuerpo del aviso: se centra en el más abandonado y solo menciona el resto de
@@ -95,10 +93,13 @@ String stalledMessage(List<StalledItem> stalled) {
   final tiempo = humanizeStalled(first.daysStalled);
   final rest = stalled.length - 1;
 
-  final base = 'Llevas $tiempo sin ver "${first.item.title}"';
-  if (rest == 0) return '$base. ¿Lo retomas?';
-  if (rest == 1) return '$base, y tienes otro título a medias.';
-  return '$base, y tienes $rest títulos más a medias.';
+  final base = tr('stalled.msg.base', {
+    'time': tiempo,
+    'title': first.item.title,
+  });
+  if (rest == 0) return tr('stalled.msg.none', {'base': base});
+  if (rest == 1) return tr('stalled.msg.one', {'base': base});
+  return tr('stalled.msg.many', {'base': base, 'n': rest});
 }
 
 final stalledItemsProvider = Provider<List<StalledItem>>((ref) {

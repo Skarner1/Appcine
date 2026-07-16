@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/content_item.dart';
 import '../../data/models/online_result.dart';
@@ -129,7 +130,7 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.pickerMode ? 'Buscar carátula e info' : 'Buscar en internet',
+          tr(widget.pickerMode ? 'search.title.picker' : 'search.title.online'),
         ),
       ),
       body: SafeArea(
@@ -190,13 +191,16 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
     );
   }
 
-  String _hintForType() => switch (_type) {
-        ContentType.series => 'Ej. Breaking Bad, Dark…',
-        ContentType.anime => 'Ej. Naruto, Frieren…',
-        ContentType.manga => 'Ej. Berserk, One Piece…',
-        ContentType.book => 'Ej. Dune, Cien años de soledad…',
-        _ => 'Ej. Interstellar, Matrix…',
-      };
+  String _hintForType() {
+    final example = switch (_type) {
+      ContentType.series => 'Breaking Bad, Dark…',
+      ContentType.anime => 'Naruto, Frieren…',
+      ContentType.manga => 'Berserk, One Piece…',
+      ContentType.book => 'Dune, 1984…',
+      _ => 'Interstellar, Matrix…',
+    };
+    return tr('form.hint.example', {'x': example});
+  }
 
   Widget _buildBody() {
     final future = _future;
@@ -212,14 +216,14 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
         if (snapshot.hasError) {
           return EmptyState(
             icon: Icons.wifi_off_rounded,
-            title: 'Sin conexión',
+            title: tr('search.offline.title'),
             // En pickerMode ya está en el formulario: decirle que lo agregue a
             // mano sería absurdo, es justo lo que está haciendo.
             message: widget.pickerMode
                 ? snapshot.error.toString()
-                : '${snapshot.error}\n\nTambién puedes agregarlo a mano ahora y '
-                    'traerle la portada desde internet cuando vuelvas a tener red.',
-            actionLabel: 'Reintentar',
+                : tr('search.offline.message',
+                    {'error': snapshot.error.toString()}),
+            actionLabel: tr('common.retry'),
             onAction: () => _runSearch(_query, force: true),
           );
         }
@@ -227,10 +231,11 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
         if (results.isEmpty) {
           return EmptyState(
             icon: Icons.search_off_rounded,
-            title: 'Sin resultados',
-            message:
-                'No encontramos "$_query" en ${_type.pluralLabel.toLowerCase()}. '
-                'Prueba con otro título o cambia de categoría.',
+            title: tr('search.noResults.title'),
+            message: tr('search.noResults.message', {
+              'query': _query,
+              'category': _type.pluralLabel.toLowerCase(),
+            }),
           );
         }
         return ListView.separated(
@@ -317,7 +322,7 @@ class _ResultTile extends StatelessWidget {
                     if (result.genres.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
-                        result.genres.join(' · '),
+                        result.genres.map(localizedGenre).join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
@@ -371,11 +376,13 @@ class _ResultTile extends StatelessWidget {
     if (result.year != null) parts.add('${result.year}');
     parts.add(result.type.label);
     if (result.type.hasEpisodes && result.episodes != null) {
-      parts.add('${result.episodes} ep');
+      parts.add('${result.episodes} ${tr('abbr.ep')}');
     } else if (!result.type.hasEpisodes && result.durationMinutes > 0) {
       final h = result.durationMinutes ~/ 60;
       final m = result.durationMinutes % 60;
-      parts.add(h > 0 ? '${h}h ${m}m' : '${m}m');
+      parts.add(h > 0
+          ? '$h${tr('dur.hourShort')} $m${tr('dur.minShort')}'
+          : '$m${tr('dur.minShort')}');
     }
     return parts.join('  ·  ');
   }
@@ -397,7 +404,7 @@ class _LoadingState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Buscando…',
+            tr('search.searching'),
             style: GoogleFonts.inter(
               fontSize: 13,
               color: AppColors.textSecondary,
@@ -436,7 +443,9 @@ class _IdleHint extends StatelessWidget {
             ),
             const SizedBox(height: 22),
             Text(
-              pickerMode ? 'Trae la carátula' : 'Descubre y agrega',
+              tr(pickerMode
+                  ? 'search.idle.picker.title'
+                  : 'search.idle.add.title'),
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 18,
@@ -446,11 +455,12 @@ class _IdleHint extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              pickerMode
-                  ? 'Busca ${type.pluralLabel.toLowerCase()} por su título y '
-                      'elige uno: traeremos su póster y la info que falte a la ficha.'
-                  : 'Busca ${type.pluralLabel.toLowerCase()} por su título. Elegí un '
-                      'resultado y lo agregás a tu catálogo con su póster e información.',
+              tr(
+                pickerMode
+                    ? 'search.idle.picker.message'
+                    : 'search.idle.add.message',
+                {'category': type.pluralLabel.toLowerCase()},
+              ),
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,

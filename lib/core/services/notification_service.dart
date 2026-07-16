@@ -5,6 +5,7 @@ import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../../data/models/content_item.dart';
+import '../l10n/strings.dart';
 
 /// Acciones rápidas disponibles en la notificación.
 class NotificationActions {
@@ -34,9 +35,6 @@ class NotificationService {
   void Function(String contentId, String? actionId)? onNotificationTap;
 
   static const String _channelId = 'recordatorios_visionado';
-  static const String _channelName = 'Recordatorios de visionado';
-  static const String _channelDescription =
-      'Recordatorios de películas y series programadas, estrenos y sugerencias.';
 
   Future<void> init() async {
     if (_initialized) return;
@@ -49,12 +47,12 @@ class NotificationService {
       // Si la plataforma no expone la zona horaria, se mantiene la default.
     }
 
-    const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(),
-      macOS: DarwinInitializationSettings(),
-      linux: LinuxInitializationSettings(defaultActionName: 'Abrir'),
-      windows: WindowsInitializationSettings(
+    final settings = InitializationSettings(
+      android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: const DarwinInitializationSettings(),
+      macOS: const DarwinInitializationSettings(),
+      linux: LinuxInitializationSettings(defaultActionName: tr('notif.open')),
+      windows: const WindowsInitializationSettings(
         appName: 'CineLog Pro',
         appUserModelId: 'com.example.cineapp',
         guid: 'a9c43c33-9c9b-4a5c-b8e2-1f4f3c2d7a01',
@@ -112,41 +110,41 @@ class NotificationService {
   }
 
   NotificationDetails _details() {
-    return const NotificationDetails(
+    return NotificationDetails(
       android: AndroidNotificationDetails(
         _channelId,
-        _channelName,
-        channelDescription: _channelDescription,
+        tr('notif.channelName'),
+        channelDescription: tr('notif.channelDescription'),
         importance: Importance.high,
         priority: Priority.high,
         category: AndroidNotificationCategory.reminder,
-        styleInformation: BigTextStyleInformation(''),
+        styleInformation: const BigTextStyleInformation(''),
         actions: [
           AndroidNotificationAction(
             NotificationActions.watchNow,
-            'Ver ahora',
+            tr('notif.action.watchNow'),
             showsUserInterface: true,
           ),
           AndroidNotificationAction(
             NotificationActions.snooze,
-            'Posponer 1h',
+            tr('notif.action.snooze'),
             showsUserInterface: true,
           ),
           AndroidNotificationAction(
             NotificationActions.dismiss,
-            'Descartar',
+            tr('notif.action.dismiss'),
             showsUserInterface: true,
           ),
         ],
       ),
-      iOS: DarwinNotificationDetails(
+      iOS: const DarwinNotificationDetails(
         presentAlert: true,
         presentSound: true,
         presentBadge: true,
       ),
-      macOS: DarwinNotificationDetails(),
-      linux: LinuxNotificationDetails(),
-      windows: WindowsNotificationDetails(),
+      macOS: const DarwinNotificationDetails(),
+      linux: const LinuxNotificationDetails(),
+      windows: const WindowsNotificationDetails(),
     );
   }
 
@@ -183,17 +181,20 @@ class NotificationService {
 
     // Un libro no se ve ni pide palomitas.
     final reading = item.type.isRead;
-    final flourish = reading ? '' : ' ¡Prepara las palomitas!';
+    final flourish = reading ? '' : tr('notif.body.popcorn');
 
     try {
       await _plugin.zonedSchedule(
         id: id,
         title: reading
-            ? '📖 Hoy toca leer: ${item.title}'
-            : '🎬 Hoy toca ver: ${item.title}',
+            ? tr('notif.watchToday.read', {'title': item.title})
+            : tr('notif.watchToday.watch', {'title': item.title}),
         body: item.type.hasEpisodes && item.currentEpisode != null
-            ? 'Continúa desde el ${item.type.unitLabel} ${(item.currentEpisode ?? 0) + 1}.$flourish'
-            : 'Lo programaste para este momento.$flourish',
+            ? '${tr('notif.body.continueFrom', {
+                'unit': item.type.unitLabel,
+                'n': (item.currentEpisode ?? 0) + 1,
+              })}$flourish'
+            : '${tr('notif.body.scheduledNow')}$flourish',
         scheduledDate: scheduled,
         notificationDetails: _details(),
         androidScheduleMode: scheduleMode,
@@ -225,7 +226,7 @@ class NotificationService {
     try {
       await _plugin.zonedSchedule(
         id: stalledReminderId,
-        title: '🍿 Lo dejaste a medias',
+        title: tr('notif.stalled.title'),
         body: message,
         scheduledDate: tz.TZDateTime.from(when, tz.local),
         notificationDetails: _details(),
@@ -259,7 +260,7 @@ class NotificationService {
       await _plugin.show(
         id: 0,
         title: '🍿 CineLog Pro',
-        body: 'Las notificaciones funcionan. ¡A disfrutar del cine!',
+        body: tr('notif.test.body'),
         notificationDetails: _details(),
       );
     } catch (_) {}

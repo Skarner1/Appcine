@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/content_item.dart';
@@ -30,13 +31,12 @@ class WatchStatsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Estadísticas de tiempo')),
+      appBar: AppBar(title: Text(tr('stats.title'))),
       body: stats.isEmpty
-          ? const EmptyState(
+          ? EmptyState(
               icon: Icons.query_stats_outlined,
-              title: 'Aún sin datos',
-              message:
-                  'Marca contenido como visto y aquí verás cuánto tiempo le has dedicado, tu actividad por mes y tus rachas.',
+              title: tr('stats.empty.title'),
+              message: tr('stats.empty.message'),
             )
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -50,7 +50,7 @@ class WatchStatsScreen extends ConsumerWidget {
                         icon: Icons.calendar_today_outlined,
                         color: AppColors.secondary,
                         value: formatLongDuration(stats.thisMonthMinutes),
-                        label: 'Este mes',
+                        label: tr('stats.thisMonth'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -59,7 +59,7 @@ class WatchStatsScreen extends ConsumerWidget {
                         icon: Icons.event_available_outlined,
                         color: AppColors.tertiary,
                         value: formatLongDuration(stats.thisYearMinutes),
-                        label: 'Este año',
+                        label: tr('stats.thisYear'),
                       ),
                     ),
                   ],
@@ -72,7 +72,7 @@ class WatchStatsScreen extends ConsumerWidget {
                         icon: Icons.local_fire_department_outlined,
                         color: AppColors.primary,
                         value: _days(stats.currentStreak),
-                        label: 'Racha actual',
+                        label: tr('stats.currentStreak'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -81,7 +81,7 @@ class WatchStatsScreen extends ConsumerWidget {
                         icon: Icons.emoji_events_outlined,
                         color: AppColors.warning,
                         value: _days(stats.longestStreak),
-                        label: 'Mejor racha',
+                        label: tr('stats.bestStreak'),
                       ),
                     ),
                   ],
@@ -89,7 +89,7 @@ class WatchStatsScreen extends ConsumerWidget {
                 const SizedBox(height: 20),
                 if (stats.minutesByType.isNotEmpty) ...[
                   _Section(
-                    title: 'Tiempo por tipo',
+                    title: tr('stats.byType'),
                     child: _ByTypeBars(
                       minutesByType: stats.minutesByType,
                       colors: _typeColors,
@@ -98,13 +98,13 @@ class WatchStatsScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                 ],
                 _Section(
-                  title: 'Actividad (últimos 12 meses)',
+                  title: tr('stats.activity12m'),
                   child: _MonthlyChart(monthly: stats.monthly),
                 ),
                 const SizedBox(height: 16),
                 if (stats.longestTitle != null) ...[
                   _Section(
-                    title: 'Tu maratón más largo',
+                    title: tr('stats.longestMarathon'),
                     child: _LongestTitle(item: stats.longestTitle!),
                   ),
                   const SizedBox(height: 16),
@@ -116,7 +116,7 @@ class WatchStatsScreen extends ConsumerWidget {
                         icon: Icons.check_circle_outline,
                         color: AppColors.success,
                         value: '${stats.completedCount}',
-                        label: 'Títulos vistos',
+                        label: tr('stats.titlesWatched'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -127,7 +127,7 @@ class WatchStatsScreen extends ConsumerWidget {
                         value: stats.averageRating == null
                             ? '—'
                             : stats.averageRating!.toStringAsFixed(1),
-                        label: 'Nota media',
+                        label: tr('stats.avgRating'),
                       ),
                     ),
                   ],
@@ -137,7 +137,7 @@ class WatchStatsScreen extends ConsumerWidget {
     );
   }
 
-  static String _days(int n) => '$n ${n == 1 ? 'día' : 'días'}';
+  static String _days(int n) => trn('stats.days', n);
 }
 
 /// Tarjeta destacada con el total y una equivalencia divertida.
@@ -174,7 +174,7 @@ class _TotalCard extends StatelessWidget {
               const Icon(Icons.timer_outlined, color: Colors.white, size: 22),
               const SizedBox(width: 8),
               Text(
-                'Tiempo total visto',
+                tr('stats.totalWatched'),
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -207,13 +207,13 @@ class _TotalCard extends StatelessWidget {
   }
 
   String _equivalence(int minutes) {
-    if (minutes <= 0) return 'Empieza a marcar lo que ves 🍿';
+    if (minutes <= 0) return tr('stats.equiv.start');
     final hours = minutes / 60;
     if (hours < 24) {
-      return '≈ ${hours.toStringAsFixed(1)} h frente a la pantalla 🍿';
+      return tr('stats.equiv.hours', {'h': hours.toStringAsFixed(1)});
     }
     final days = hours / 24;
-    return '≈ ${days.toStringAsFixed(1)} días completos de maratón 🍿';
+    return tr('stats.equiv.days', {'d': days.toStringAsFixed(1)});
   }
 }
 
@@ -387,7 +387,7 @@ class _MonthlyChart extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Text(
-          'Sin actividad registrada en este periodo. Marca contenido con su fecha de visionado para llenar esta gráfica.',
+          tr('stats.noActivity'),
           style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted),
         ),
       );
@@ -405,7 +405,7 @@ class _MonthlyChart extends StatelessWidget {
               getTooltipItem: (group, _, rod, _) {
                 final bucket = monthly[group.x];
                 return BarTooltipItem(
-                  '${formatLongDuration(bucket.minutes)}\n${bucket.count} ${bucket.count == 1 ? 'visionado' : 'visionados'}',
+                  '${formatLongDuration(bucket.minutes)}\n${trn('stats.views', bucket.count)}',
                   GoogleFonts.inter(
                     fontSize: 11,
                     color: AppColors.textPrimary,
@@ -436,7 +436,7 @@ class _MonthlyChart extends StatelessWidget {
                   // Muestra la inicial del mes (uno de cada dos para no saturar).
                   if (index.isOdd) return const SizedBox.shrink();
                   final label =
-                      DateFormat('MMM', 'es').format(monthly[index].month);
+                      DateFormat('MMM', S.lang.code).format(monthly[index].month);
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(

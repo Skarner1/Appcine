@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../core/l10n/strings.dart';
 import '../../data/models/content_item.dart';
 
 /// Prefijo que identifica un catálogo de CineLog en un QR. Sirve para no
@@ -70,7 +71,7 @@ bool isCatalogQr(String text) => text.trimLeft().startsWith(kQrMarker);
 List<ContentItem> parseCatalogQr(String text) {
   final trimmed = text.trim();
   if (!isCatalogQr(trimmed)) {
-    throw const FormatException('Este QR no es un catálogo de CineLog.');
+    throw FormatException(tr('qr.err.notCatalog'));
   }
 
   final List raw;
@@ -79,7 +80,7 @@ List<ContentItem> parseCatalogQr(String text) {
     final json = utf8.decode(gzip.decode(base64.decode(payload)));
     raw = jsonDecode(json) as List;
   } catch (_) {
-    throw const FormatException('El QR está dañado o incompleto.');
+    throw FormatException(tr('qr.err.corrupt'));
   }
 
   return raw
