@@ -4890,5 +4890,37 @@ const Map<String, Map<AppLanguage, String>> _translations = {
     AppLanguage.ar: 'عاشق الأفلام',
   },
 
+  // ---- Bienvenida: elección de idioma (primera instalación) --------------
+  'onboarding.language.title': {
+    AppLanguage.en: 'Choose your language',
+    AppLanguage.es: 'Elige tu idioma',
+    AppLanguage.pt: 'Escolha seu idioma',
+    AppLanguage.ko: '언어를 선택하세요',
+    AppLanguage.ja: '言語を選択',
+    AppLanguage.tr: 'Dilinizi seçin',
+    AppLanguage.zh: '选择您的语言',
+    AppLanguage.ar: 'اختر لغتك',
+  },
+  'onboarding.language.subtitle': {
+    AppLanguage.en: 'You can change it anytime in Settings.',
+    AppLanguage.es: 'Puedes cambiarlo cuando quieras en Ajustes.',
+    AppLanguage.pt: 'Você pode alterá-lo quando quiser nas Configurações.',
+    AppLanguage.ko: '나중에 설정에서 언제든지 바꿀 수 있어요.',
+    AppLanguage.ja: '設定でいつでも変更できます。',
+    AppLanguage.tr: 'Daha sonra Ayarlar\'dan değiştirebilirsiniz.',
+    AppLanguage.zh: '之后可以随时在设置中更改。',
+    AppLanguage.ar: 'يمكنك تغييرها في أي وقت من الإعدادات.',
+  },
+  'onboarding.continue': {
+    AppLanguage.en: 'Continue',
+    AppLanguage.es: 'Continuar',
+    AppLanguage.pt: 'Continuar',
+    AppLanguage.ko: '계속',
+    AppLanguage.ja: '続ける',
+    AppLanguage.tr: 'Devam et',
+    AppLanguage.zh: '继续',
+    AppLanguage.ar: 'متابعة',
+  },
+
   // INSERT-NEW-SECTIONS-ABOVE (no borrar: marca de inserción para nuevas claves)
 };

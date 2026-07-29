@@ -48,7 +48,9 @@ class NotificationService {
     }
 
     final settings = InitializationSettings(
-      android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
+      // Ícono monocromo (silueta blanca sobre transparente) para la barra de
+      // estado: Android solo usa el alfa y lo tiñe. Ver res/drawable-*/.
+      android: const AndroidInitializationSettings('ic_stat_notification'),
       iOS: const DarwinInitializationSettings(),
       macOS: const DarwinInitializationSettings(),
       linux: LinuxInitializationSettings(defaultActionName: tr('notif.open')),

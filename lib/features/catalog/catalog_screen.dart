@@ -116,6 +116,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                       ),
                       const SizedBox(width: 10),
                       _HeaderIconButton(
+                        icon: Icons.add_rounded,
+                        tooltip: tr('action.addContent'),
+                        onTap: () => _openForm(context),
+                      ),
+                      const SizedBox(width: 10),
+                      _HeaderIconButton(
                         icon: Icons.collections_bookmark_outlined,
                         tooltip: tr('catalog.collections'),
                         onTap: () => Navigator.of(context).push(

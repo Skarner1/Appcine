@@ -14,6 +14,7 @@ import 'data/models/content_adapters.dart';
 import 'data/models/content_item.dart';
 import 'data/repositories/content_repository.dart';
 import 'data/seed_data.dart';
+import 'features/onboarding/language_onboarding_screen.dart';
 import 'providers/providers.dart';
 
 Future<void> main() async {
@@ -49,6 +50,14 @@ Future<void> main() async {
       await contentBox.putAll({for (final item in migrated) item.id: item});
     }
     await settingsBox.put(migratedWatchLogKey, true);
+  }
+
+  // El selector de idioma de bienvenida solo debe salir en una instalación
+  // nueva. Para quien ya venía usando la app (con contenido guardado o un idioma
+  // ya elegido) se marca como hecho, para no interrumpirlo tras actualizar.
+  if (settingsBox.get(languageOnboardedKey) == null &&
+      (settingsBox.get('app_language') != null || contentBox.isNotEmpty)) {
+    await settingsBox.put(languageOnboardedKey, true);
   }
 
   // Paleta inicial según el tema guardado (evita parpadeo en el primer frame).

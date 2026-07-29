@@ -12,8 +12,8 @@ import 'data/models/content_item.dart';
 import 'data/services/auto_backup_service.dart';
 import 'data/services/poster_store.dart';
 import 'features/catalog/catalog_screen.dart';
-import 'features/content_form/content_form_screen.dart';
 import 'features/detail/content_detail_screen.dart';
+import 'features/onboarding/language_onboarding_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/recommendations/recommendations_screen.dart';
 import 'features/reminders/stalled_reminders.dart';
@@ -62,8 +62,21 @@ class CineLogApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const AppShell(),
+      home: const _RootGate(),
     );
+  }
+}
+
+/// Decide qué se muestra al abrir: la pantalla de elección de idioma (solo la
+/// primera vez que se instala la app) o la app en sí. En cuanto el usuario
+/// confirma el idioma se marca el flag y ya no vuelve a salir.
+class _RootGate extends ConsumerWidget {
+  const _RootGate();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final onboarded = ref.watch(languageOnboardedProvider);
+    return onboarded ? const AppShell() : const LanguageOnboardingScreen();
   }
 }
 
@@ -222,12 +235,6 @@ class _AppShellState extends ConsumerState<AppShell> {
           ],
         ),
       ),
-      floatingActionButton: _index == 0
-          ? AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: _CatalogFab(key: const ValueKey('fab')),
-            )
-          : null,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -250,66 +257,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                     ),
                   ),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CatalogFab extends StatelessWidget {
-  const _CatalogFab({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: SizedBox(
-        height: 64,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: AppColors.primaryGradient,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.4),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ContentFormScreen()),
-              ),
-              borderRadius: BorderRadius.circular(20),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 22),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.add, color: Colors.white, size: 26),
-                    const SizedBox(width: 8),
-                    Text(
-                      tr('common.add'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ),
         ),

@@ -1131,8 +1131,15 @@ class _LanguageSelector extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             lang.nativeName,
-                            style: GoogleFonts.inter(
+                            // `inherit: false` deja el nombre en la fuente del
+                            // sistema en vez de Inter (que no trae glifos árabes
+                            // ni CJK y los recortaba/mostraba como //// ). El
+                            // sistema sí resuelve cada escritura con su fuente y
+                            // sus métricas, así que ya no se corta.
+                            style: TextStyle(
+                              inherit: false,
                               fontSize: 15,
+                              height: 1.4,
                               fontWeight: lang == current
                                   ? FontWeight.w600
                                   : FontWeight.w500,
