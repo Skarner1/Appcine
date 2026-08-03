@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidad · CineLog Pro</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f7f7f9;
+    --text: #1c1c22;
+    --muted: #5c5c68;
+    --accent: #6c5ce7;
+    --border: #e4e4ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14141a;
+      --card: #1e1e28;
+      --text: #ececf2;
+      --muted: #9a9aab;
+      --accent: #a29bfe;
+      --border: #2b2b38;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+  header { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 28px; }
+  h1 { font-size: 1.7rem; margin: 0 0 6px; }
+  h2 { font-size: 1.2rem; margin: 34px 0 10px; }
+  .meta { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  p, li { color: var(--text); }
+  a { color: var(--accent); }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  .highlight {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 20px 0;
+  }
+  .lang-toggle { display: flex; gap: 8px; margin-bottom: 24px; }
+  .lang-toggle button {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .lang-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .lang { display: none; }
+  .lang.active { display: block; }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+  code { background: var(--card); padding: 2px 6px; border-radius: 5px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="lang-toggle">
+    <button id="btn-es" class="active" onclick="setLang('es')">Español</button>
+    <button id="btn-en" onclick="setLang('en')">English</button>
+  </div>
+
+  <!-- ================= ESPAÑOL ================= -->
+  <section id="es" class="lang active">
+    <header>
+      <h1>Política de Privacidad</h1>
+      <p class="meta">CineLog Pro (<code>com.ivantorres.cinelogpro</code>) · Última actualización: 3 de agosto de 2026</p>
+    </header>
+
+    <div class="highlight">
+      <strong>Resumen:</strong> CineLog Pro <strong>no recopila, transmite ni vende ningún dato personal</strong>.
+      Toda tu información (tu diario de visionado, valoraciones, notas, colecciones y ajustes) se guarda
+      <strong>únicamente en tu dispositivo</strong>. No hay cuentas de usuario, ni publicidad, ni analíticas, ni seguimiento.
+    </div>
+
+    <h2>1. Información que almacena la app</h2>
+    <p>Toda la información que creas dentro de CineLog Pro se guarda localmente en tu dispositivo mediante una base de datos local (Hive). Esto incluye:</p>
+    <ul>
+      <li>Tu catálogo de películas, series, anime, libros y mangas.</li>
+      <li>Valoraciones, notas, fechas de visionado, estados y colecciones.</li>
+      <li>Estadísticas y preferencias de la aplicación (idioma, tema, etc.).</li>
+    </ul>
+    <p>El desarrollador <strong>no tiene acceso</strong> a estos datos: nunca salen de tu dispositivo salvo que tú decidas exportarlos o compartirlos (ver secciones 3 y 5).</p>
+
+    <h2>2. Búsqueda en internet</h2>
+    <p>Cuando buscas contenido online, la app consulta servicios públicos de terceros para obtener información y carátulas. Estos servicios reciben únicamente el <strong>texto de tu búsqueda</strong> y, de forma inherente a cualquier conexión, tu <strong>dirección IP</strong>. No se les envía ningún dato personal ni identificador tuyo. Los servicios utilizados son:</p>
+    <ul>
+      <li><strong>Cinemeta / Stremio</strong> — películas (<a href="https://www.stremio.com" target="_blank" rel="noopener">stremio.com</a>)</li>
+      <li><strong>TVMaze</strong> — series de TV (<a href="https://www.tvmaze.com" target="_blank" rel="noopener">tvmaze.com</a>)</li>
+      <li><strong>AniList</strong> — anime y manga (<a href="https://anilist.co" target="_blank" rel="noopener">anilist.co</a>)</li>
+      <li><strong>Open Library</strong> — libros (<a href="https://openlibrary.org" target="_blank" rel="noopener">openlibrary.org</a>)</li>
+    </ul>
+    <p>El tratamiento de esos datos se rige por las políticas de privacidad de cada servicio. Si no usas la búsqueda online, la app no realiza ninguna conexión a internet para estos fines.</p>
+
+    <h2>3. Cámara (escaneo de QR)</h2>
+    <p>La app solicita permiso de cámara <strong>solo</strong> si usas la función de escanear un código QR para importar el catálogo de otro dispositivo. El reconocimiento del QR ocurre <strong>en tu dispositivo</strong>; las imágenes de la cámara no se guardan ni se envían a ningún servidor. La cámara es opcional: el resto de la app funciona sin conceder este permiso.</p>
+
+    <h2>4. Notificaciones</h2>
+    <p>La app puede mostrar notificaciones locales (por ejemplo, recordatorios) generadas en tu propio dispositivo. No se utiliza ningún servicio de notificaciones push en la nube ni se envía información a servidores externos.</p>
+
+    <h2>5. Copias de seguridad y compartir catálogo</h2>
+    <p>Puedes exportar o importar tus datos como archivos de copia de seguridad, y compartir tu catálogo mediante un código QR. Estos archivos y códigos los generas y controlas tú: se comparten directamente por los medios que elijas (por ejemplo, otra app o de dispositivo a dispositivo) y <strong>no pasan por ningún servidor del desarrollador</strong>.</p>
+
+    <h2>6. Publicidad, analíticas y cuentas</h2>
+    <p>CineLog Pro <strong>no</strong> incluye anuncios, <strong>no</strong> utiliza herramientas de analítica o seguimiento (como Google Analytics, Firebase o similares), <strong>no</strong> integra redes publicitarias y <strong>no</strong> requiere crear una cuenta ni iniciar sesión.</p>
+
+    <h2>7. Privacidad de los menores</h2>
+    <p>La aplicación no está dirigida a menores de 13 años y no recopila conscientemente datos personales de ninguna persona, independientemente de su edad.</p>
+
+    <h2>8. Eliminación de tus datos</h2>
+    <p>Como todos los datos se guardan solo en tu dispositivo, puedes eliminarlos en cualquier momento borrando los datos de la app desde los ajustes de Android o desinstalando la aplicación. No queda ninguna copia en manos del desarrollador.</p>
+
+    <h2>9. Cambios en esta política</h2>
+    <p>Si esta política cambia, se actualizará esta misma página y se modificará la fecha de "Última actualización" que aparece arriba.</p>
+
+    <h2>10. Contacto</h2>
+    <p>Si tienes dudas sobre esta política de privacidad, puedes escribir a: <a href="mailto:ivantr158@gmail.com">ivantr158@gmail.com</a></p>
+  </section>
+
+  <!-- ================= ENGLISH ================= -->
+  <section id="en" class="lang">
+    <header>
+      <h1>Privacy Policy</h1>
+      <p class="meta">CineLog Pro (<code>com.ivantorres.cinelogpro</code>) · Last updated: August 3, 2026</p>
+    </header>
+
+    <div class="highlight">
+      <strong>Summary:</strong> CineLog Pro <strong>does not collect, transmit, or sell any personal data</strong>.
+      All your information (your viewing diary, ratings, notes, collections, and settings) is stored
+      <strong>only on your device</strong>. There are no user accounts, no ads, no analytics, and no tracking.
+    </div>
+
+    <h2>1. Information the app stores</h2>
+    <p>All information you create in CineLog Pro is stored locally on your device using a local database (Hive). This includes:</p>
+    <ul>
+      <li>Your catalog of movies, TV shows, anime, books, and manga.</li>
+      <li>Ratings, notes, watch dates, statuses, and collections.</li>
+      <li>App statistics and preferences (language, theme, etc.).</li>
+    </ul>
+    <p>The developer has <strong>no access</strong> to this data: it never leaves your device unless you choose to export or share it (see sections 3 and 5).</p>
+
+    <h2>2. Online search</h2>
+    <p>When you search for content online, the app queries public third-party services to retrieve information and cover art. These services only receive the <strong>text of your search</strong> and, inherently to any connection, your <strong>IP address</strong>. No personal data or identifier of yours is sent to them. The services used are:</p>
+    <ul>
+      <li><strong>Cinemeta / Stremio</strong> — movies (<a href="https://www.stremio.com" target="_blank" rel="noopener">stremio.com</a>)</li>
+      <li><strong>TVMaze</strong> — TV shows (<a href="https://www.tvmaze.com" target="_blank" rel="noopener">tvmaze.com</a>)</li>
+      <li><strong>AniList</strong> — anime and manga (<a href="https://anilist.co" target="_blank" rel="noopener">anilist.co</a>)</li>
+      <li><strong>Open Library</strong> — books (<a href="https://openlibrary.org" target="_blank" rel="noopener">openlibrary.org</a>)</li>
+    </ul>
+    <p>The handling of that data is governed by each service's own privacy policy. If you don't use online search, the app makes no internet connection for these purposes.</p>
+
+    <h2>3. Camera (QR scanning)</h2>
+    <p>The app requests camera permission <strong>only</strong> if you use the feature to scan a QR code to import another device's catalog. QR recognition happens <strong>on your device</strong>; camera images are neither stored nor sent to any server. The camera is optional: the rest of the app works without granting this permission.</p>
+
+    <h2>4. Notifications</h2>
+    <p>The app may show local notifications (for example, reminders) generated on your own device. No cloud push notification service is used, and no information is sent to external servers.</p>
+
+    <h2>5. Backups and catalog sharing</h2>
+    <p>You can export or import your data as backup files, and share your catalog via a QR code. These files and codes are generated and controlled by you: they are shared directly through the means you choose (for example, another app or device-to-device) and <strong>do not pass through any developer server</strong>.</p>
+
+    <h2>6. Ads, analytics, and accounts</h2>
+    <p>CineLog Pro does <strong>not</strong> include ads, does <strong>not</strong> use any analytics or tracking tools (such as Google Analytics, Firebase, or similar), does <strong>not</strong> integrate advertising networks, and does <strong>not</strong> require creating an account or signing in.</p>
+
+    <h2>7. Children's privacy</h2>
+    <p>The app is not directed at children under 13 and does not knowingly collect personal data from anyone, regardless of age.</p>
+
+    <h2>8. Deleting your data</h2>
+    <p>Because all data is stored only on your device, you can delete it at any time by clearing the app's data in your Android settings or by uninstalling the app. No copy remains with the developer.</p>
+
+    <h2>9. Changes to this policy</h2>
+    <p>If this policy changes, this same page will be updated and the "Last updated" date shown above will be revised.</p>
+
+    <h2>10. Contact</h2>
+    <p>If you have questions about this privacy policy, you can write to: <a href="mailto:ivantr158@gmail.com">ivantr158@gmail.com</a></p>
+  </section>
+
+  <footer>
+    © 2026 Ivan Torres · CineLog Pro
+  </footer>
+</div>
+
+<script>
+  function setLang(l) {
+    document.getElementById('es').classList.toggle('active', l === 'es');
+    document.getElementById('en').classList.toggle('active', l === 'en');
+    document.getElementById('btn-es').classList.toggle('active', l === 'es');
+    document.getElementById('btn-en').classList.toggle('active', l === 'en');
+    document.documentElement.lang = l;
+  }
+</script>
+</body>
+</html>
