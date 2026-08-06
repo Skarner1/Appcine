@@ -9,8 +9,13 @@
     <!-- Leer el QR del catálogo de otro móvil (mobile_scanner). El
          reconocimiento ocurre en el aparato: la imagen no sale de aquí. -->
     <uses-permission android:name="android.permission.CAMERA"/>
-    <!-- La cámara no es imprescindible: sin ella todo funciona menos el QR. -->
+    <!-- La cámara no es imprescindible: sin ella todo funciona menos el QR.
+         Al pedir el permiso CAMERA, Google Play asume por defecto que el
+         aparato NECESITA cámara y autofocus, y filtra muchas tablets (WiFi o
+         económicas) que no los tienen. Marcamos AMBAS como opcionales para que
+         la app siga siendo instalable en tablets. -->
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     <application
         android:label="CineLog Pro"
         android:name="${applicationName}"
