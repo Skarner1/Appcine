@@ -229,6 +229,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 ? SliverFillRemaining(
                     hasScrollBody: false,
                     child: EmptyState(
+                      imageAsset: !filter.hasActiveFilters
+                          ? 'assets/img/empty/empty_box.png'
+                          : (filter.type == ContentType.book ||
+                                  filter.type == ContentType.manga)
+                              ? 'assets/img/section/books.png'
+                              : 'assets/img/empty/no_results.png',
                       icon: filter.hasActiveFilters
                           ? Icons.search_off_rounded
                           : Icons.movie_filter_outlined,

@@ -34,6 +34,7 @@ class WatchStatsScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(tr('stats.title'))),
       body: stats.isEmpty
           ? EmptyState(
+              imageAsset: 'assets/img/section/stats.png',
               icon: Icons.query_stats_outlined,
               title: tr('stats.empty.title'),
               message: tr('stats.empty.message'),

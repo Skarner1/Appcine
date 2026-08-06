@@ -57,6 +57,7 @@ class NotificationsScreen extends ConsumerWidget {
       body: SafeArea(
         child: isEmpty
             ? EmptyState(
+                imageAsset: 'assets/img/section/reminders.png',
                 icon: Icons.notifications_none_rounded,
                 title: tr('notif.empty.title'),
                 message: tr('notif.empty.message'),

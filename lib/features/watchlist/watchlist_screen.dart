@@ -114,6 +114,12 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
               ),
               data: (_) => items.isEmpty
                   ? EmptyState(
+                      imageAsset: switch (_tab) {
+                        WatchlistTab.pending =>
+                          'assets/img/section/watchlist.png',
+                        WatchlistTab.seen => 'assets/img/section/diary.png',
+                        WatchlistTab.rewatch => 'assets/img/empty/empty_box.png',
+                      },
                       icon: switch (_tab) {
                         WatchlistTab.pending => Icons.playlist_add_check,
                         WatchlistTab.rewatch => Icons.replay,

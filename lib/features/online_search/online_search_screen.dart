@@ -230,6 +230,7 @@ class _OnlineSearchScreenState extends ConsumerState<OnlineSearchScreen> {
         final results = snapshot.data ?? const [];
         if (results.isEmpty) {
           return EmptyState(
+            imageAsset: 'assets/img/empty/no_results.png',
             icon: Icons.search_off_rounded,
             title: tr('search.noResults.title'),
             message: tr('search.noResults.message', {

@@ -134,6 +134,7 @@ class _RouletteScreenState extends ConsumerState<RouletteScreen> {
             Expanded(
               child: candidates.isEmpty
                   ? EmptyState(
+                      imageAsset: 'assets/img/section/roulette.png',
                       icon: Icons.casino_outlined,
                       title: tr('roulette.empty.title'),
                       message: _filter.type == null &&

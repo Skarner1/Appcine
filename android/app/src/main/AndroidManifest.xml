@@ -72,5 +72,12 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Permite abrir las plataformas de streaming/tiendas en su app o en el
+             navegador desde la sección "Dónde ver". En Android 11+ url_launcher
+             necesita declarar que consultamos apps capaces de abrir https. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
     </queries>
 </manifest>

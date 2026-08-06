@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.1+2
+version: 1.1.0+3
 
 environment:
   sdk: ^3.11.3
@@ -60,6 +60,9 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.2.1
   connectivity_plus: ^7.3.0
+  # Abre las plataformas de streaming/tiendas oficiales (deep-link a Netflix,
+  # Crunchyroll, etc.) en la sección "Dónde ver" del detalle.
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -85,6 +88,13 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Assets 3D de marca (iconos de sección e ilustraciones de estado vacío).
+  # Los PNG originales a tamaño completo viven en lib/Imagenes/ como fuente;
+  # aquí solo se empaquetan las versiones reescaladas (256/512 px).
+  assets:
+    - assets/img/empty/
+    - assets/img/section/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -37,6 +37,7 @@ class CollectionsScreen extends ConsumerWidget {
       ),
       body: collections.isEmpty
           ? EmptyState(
+              imageAsset: 'assets/img/section/collections.png',
               icon: Icons.collections_bookmark_outlined,
               title: tr('coll.empty.title'),
               message: tr('coll.empty.message'),

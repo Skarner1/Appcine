@@ -19,6 +19,7 @@ import '../../shared/widgets/rating_stars.dart';
 import '../../shared/widgets/status_badge.dart';
 import '../collections/add_to_collection.dart';
 import '../content_form/content_form_screen.dart';
+import 'where_to_watch.dart';
 
 /// Pantalla de detalle (spec 7.2): SliverAppBar con póster, acciones rápidas,
 /// info grid, notas, recomendación y contenido relacionado.
@@ -58,6 +59,8 @@ class ContentDetailScreen extends ConsumerWidget {
                   _buildQuickActions(context, ref, item),
                   const SizedBox(height: 24),
                   _buildInfoGrid(context, item),
+                  const SizedBox(height: 24),
+                  WhereToWatch(item: item),
                   const SizedBox(height: 24),
                   if (item.type.hasEpisodes && item.episodes != null) ...[
                     _EpisodeProgress(item: item),

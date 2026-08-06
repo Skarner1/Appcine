@@ -80,6 +80,7 @@ class _RecommendationsScreenState
           Expanded(
             child: items.isEmpty
                 ? EmptyState(
+                    imageAsset: 'assets/img/section/profile.png',
                     icon: switch (_tab) {
                       RecommendationTab.friends => Icons.people_outline,
                       RecommendationTab.system => Icons.auto_awesome_outlined,
